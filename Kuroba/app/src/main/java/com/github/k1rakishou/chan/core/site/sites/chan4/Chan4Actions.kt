@@ -47,6 +47,7 @@ class Chan4Actions(
     val siteBoards = Chan4BoardsRequest(
       siteDescriptor = chan4.descriptor,
       boardManager = chan4.boardManager,
+      boardFlagInfoRepository = chan4.boardFlagInfoRepository,
       request = request,
       proxiedOkHttpClient = chan4.proxiedOkHttpClient
     )

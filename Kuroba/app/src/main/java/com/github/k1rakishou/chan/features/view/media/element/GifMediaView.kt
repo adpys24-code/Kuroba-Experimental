@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.PorterDuff
 import android.view.GestureDetector
 import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 import android.widget.FrameLayout
 import com.github.k1rakishou.chan.R
 import com.github.k1rakishou.chan.core.cache.CacheFileType
@@ -72,6 +73,26 @@ class GifMediaView(
 
   private val closeMediaActionHelper: CloseMediaActionHelper
   private val gestureDetector: GestureDetector
+  private val scaleGestureDetector: ScaleGestureDetector?
+
+  private var gifZoom = 1f
+  private var gifOffsetX = 0f
+  private var gifOffsetY = 0f
+  private var lastPanX: Float? = null
+  private var lastPanY: Float? = null
+  private var pinchFocusX = 0f
+  private var pinchFocusY = 0f
+  private var zoomAtPinchStart = 1f
+  private var spanAtPinchStart = 1f
+  private var smoothedSpan = 1f
+  private var smoothedPanX = 0f
+  private var smoothedPanY = 0f
+  private val zoomSpeedMultiplier: Float by lazy {
+    kurobaSettings.mpv.videoZoomSpeed.readBlocking().toFloat()
+  }
+  private val panSpeedMultiplier: Float by lazy {
+    kurobaSettings.mpv.videoPanSpeed.readBlocking().toFloat()
+  }
 
   private var fullGifDeferred = CompletableDeferred<MediaPreloadResult>()
   private var preloadCancelableDownload: CancelableDownload? = null
@@ -142,6 +163,12 @@ class GifMediaView(
           return@GestureDetectorListener false
         },
         onMediaLongClick = { mediaViewContract.onMediaLongClick(this, viewableMedia) },
+        isZoomed = { gifZoom > 1f },
+        onDoubleTapWhenZoomed = {
+          gifZoom = 1f; gifOffsetX = 0f; gifOffsetY = 0f
+          lastPanX = null; lastPanY = null
+          applyGifZoom()
+        },
         pauseUnpauseGifFunc = {
           val isNowPlaying = (actualGifView.drawable as? GifDrawable)?.isPlaying?.not()
             ?: return@GestureDetectorListener
@@ -150,6 +177,44 @@ class GifMediaView(
         }
       )
     )
+
+    scaleGestureDetector = if (kurobaSettings.mpv.videoZoom.readBlocking()) {
+      ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+        override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
+          zoomAtPinchStart = gifZoom
+          smoothedSpan = detector.currentSpan.coerceAtLeast(1f)
+          spanAtPinchStart = smoothedSpan
+          pinchFocusX = detector.focusX - actualGifView.width / 2f
+          pinchFocusY = detector.focusY - actualGifView.height / 2f
+          return true
+        }
+
+        override fun onScale(detector: ScaleGestureDetector): Boolean {
+          val zoomEmaWeight = (1f - 0.18f / zoomSpeedMultiplier).coerceAtMost(0.97f)
+          smoothedSpan = smoothedSpan * zoomEmaWeight + detector.currentSpan * (1f - zoomEmaWeight)
+          val spanRatio = (smoothedSpan / spanAtPinchStart).coerceAtLeast(0.01f)
+          val zoomExp = 2.2 + (zoomSpeedMultiplier - 1.0) * 17.8 / 9.0
+          val newZoom = (zoomAtPinchStart * Math.pow(spanRatio.toDouble(), zoomExp).toFloat()).coerceIn(1f, 8f)
+          if (kotlin.math.abs(newZoom - gifZoom) < gifZoom * 0.005f) return true
+          val effectiveScale = newZoom / gifZoom
+          gifOffsetX = (gifOffsetX - pinchFocusX) * effectiveScale + pinchFocusX
+          gifOffsetY = (gifOffsetY - pinchFocusY) * effectiveScale + pinchFocusY
+          gifZoom = newZoom
+          if (gifZoom <= 1f) {
+            gifOffsetX = 0f; gifOffsetY = 0f
+          } else {
+            val maxOffsetX = actualGifView.width * (gifZoom - 1f) / 2f
+            val maxOffsetY = actualGifView.height * (gifZoom - 1f) / 2f
+            gifOffsetX = gifOffsetX.coerceIn(-maxOffsetX, maxOffsetX)
+            gifOffsetY = gifOffsetY.coerceIn(-maxOffsetY, maxOffsetY)
+          }
+          applyGifZoom()
+          return true
+        }
+      })
+    } else {
+      null
+    }
 
     thumbnailMediaView.setOnTouchListener { v, event ->
       if (thumbnailMediaView.visibility != VISIBLE) {
@@ -166,8 +231,52 @@ class GifMediaView(
         return@setOnTouchListener false
       }
 
-      return@setOnTouchListener gestureDetector.onTouchEvent(event)
+      if (scaleGestureDetector != null) {
+        scaleGestureDetector.onTouchEvent(event)
+
+        if (gifZoom > 1f) {
+          parent.requestDisallowInterceptTouchEvent(true)
+        }
+
+        if (gifZoom > 1f && !scaleGestureDetector.isInProgress
+          && event.pointerCount == 1 && event.actionMasked == MotionEvent.ACTION_MOVE) {
+          val curX = event.x
+          val curY = event.y
+          if (lastPanX == null) { smoothedPanX = curX; smoothedPanY = curY }
+          val effectiveMultiplier = panSpeedMultiplier * gifZoom
+          val panEmaWeight = (1f - 0.15f / effectiveMultiplier).coerceAtMost(0.99f)
+          smoothedPanX = smoothedPanX * panEmaWeight + curX * (1f - panEmaWeight)
+          smoothedPanY = smoothedPanY * panEmaWeight + curY * (1f - panEmaWeight)
+          val dx = smoothedPanX - (lastPanX ?: smoothedPanX)
+          val dy = smoothedPanY - (lastPanY ?: smoothedPanY)
+          lastPanX = smoothedPanX
+          lastPanY = smoothedPanY
+          val maxOffsetX = actualGifView.width * (gifZoom - 1f) / 2f
+          val maxOffsetY = actualGifView.height * (gifZoom - 1f) / 2f
+          gifOffsetX = (gifOffsetX + dx * gifZoom * 5.0f * panSpeedMultiplier).coerceIn(-maxOffsetX, maxOffsetX)
+          gifOffsetY = (gifOffsetY + dy * gifZoom * 5.0f * panSpeedMultiplier).coerceIn(-maxOffsetY, maxOffsetY)
+          applyGifZoom()
+        } else if (event.actionMasked == MotionEvent.ACTION_UP
+          || event.actionMasked == MotionEvent.ACTION_CANCEL
+          || event.pointerCount != 1) {
+          lastPanX = null
+          lastPanY = null
+        }
+      }
+
+      if (scaleGestureDetector == null || !scaleGestureDetector.isInProgress) {
+        gestureDetector.onTouchEvent(event)
+      }
+
+      return@setOnTouchListener true
     }
+  }
+
+  private fun applyGifZoom() {
+    actualGifView.scaleX = gifZoom
+    actualGifView.scaleY = gifZoom
+    actualGifView.translationX = gifOffsetX
+    actualGifView.translationY = gifOffsetY
   }
 
   override fun onInsetsChanged() {
@@ -175,6 +284,7 @@ class GifMediaView(
   }
 
   override fun onInterceptTouchEvent(ev: MotionEvent?): Boolean {
+    if (gifZoom > 1f) return false
     if (ev != null && closeMediaActionHelper.onInterceptTouchEvent(ev)) {
       return true
     }
@@ -183,6 +293,7 @@ class GifMediaView(
   }
 
   override fun onTouchEvent(event: MotionEvent): Boolean {
+    if (gifZoom > 1f) return false
     if (closeMediaActionHelper.onTouchEvent(event)) {
       return true
     }
@@ -333,6 +444,10 @@ class GifMediaView(
 
     preloadCancelableDownload?.cancel()
     preloadCancelableDownload = null
+
+    gifZoom = 1f; gifOffsetX = 0f; gifOffsetY = 0f
+    actualGifView.scaleX = 1f; actualGifView.scaleY = 1f
+    actualGifView.translationX = 0f; actualGifView.translationY = 0f
 
     thumbnailMediaView.unbind()
     actualGifView.setImageDrawable(null)
@@ -533,6 +648,8 @@ class GifMediaView(
     private val mediaViewContract: MediaViewContract,
     private val tryPreloadingFunc: () -> Boolean,
     private val onMediaLongClick: () -> Unit,
+    private val isZoomed: () -> Boolean,
+    private val onDoubleTapWhenZoomed: () -> Unit,
     private val pauseUnpauseGifFunc: () -> Unit
   ) : GestureDetector.SimpleOnGestureListener() {
 
@@ -550,6 +667,11 @@ class GifMediaView(
     override fun onDoubleTap(e: MotionEvent): Boolean {
       if (e == null || actualGifView.visibility != VISIBLE) {
         return false
+      }
+
+      if (isZoomed()) {
+        onDoubleTapWhenZoomed()
+        return true
       }
 
       pauseUnpauseGifFunc()

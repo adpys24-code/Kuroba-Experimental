@@ -81,6 +81,98 @@ class ExperimentalSettingsScreenBuilder(
 
       addSetting(
         SettingUiElement.Bool(
+          title = { appResources.string(R.string.setting_high_res_gif_cells) },
+          description = { appResources.string(R.string.setting_high_res_gif_cells_description) },
+          setting = kurobaSettings.application.highResGifCells,
+          requiresAppRestart = true,
+          badges = listOf(
+            SettingUiElement.Badge.Dangerous(
+              text = appResources.string(R.string.site_settings_experimental_warning),
+              description = appResources.string(R.string.site_settings_experimental_warning_high_res_cells)
+            )
+          )
+        )
+      )
+
+      addSetting(
+        SettingUiElement.Bool(
+          title = { appResources.string(R.string.setting_high_res_mp4_cells) },
+          description = { appResources.string(R.string.setting_high_res_mp4_cells_description) },
+          setting = kurobaSettings.application.highResMp4Cells,
+          requiresAppRestart = true,
+          badges = listOf(
+            SettingUiElement.Badge.Dangerous(
+              text = appResources.string(R.string.site_settings_experimental_warning),
+              description = appResources.string(R.string.site_settings_experimental_warning_high_res_cells)
+            )
+          )
+        )
+      )
+
+      addSetting(
+        SettingUiElement.Bool(
+          title = { appResources.string(R.string.setting_high_res_webm_cells) },
+          description = { appResources.string(R.string.setting_high_res_webm_cells_description) },
+          setting = kurobaSettings.application.highResWebmCells,
+          requiresAppRestart = true,
+          badges = listOf(
+            SettingUiElement.Badge.Dangerous(
+              text = appResources.string(R.string.site_settings_experimental_warning),
+              description = appResources.string(R.string.site_settings_experimental_warning_high_res_cells)
+            )
+          )
+        )
+      )
+
+      addSetting(
+        SettingUiElement.Bool(
+          title = { appResources.string(R.string.setting_high_res_video_cells_autoplay) },
+          description = { appResources.string(R.string.setting_high_res_video_cells_autoplay_description) },
+          setting = kurobaSettings.application.highResVideoCellsAutoplay,
+          requiresAppRestart = false
+        )
+      )
+
+      addSetting(
+        SettingUiElement.Bool(
+          title = { appResources.string(R.string.setting_use_legacy_board_dropdown) },
+          description = { appResources.string(R.string.setting_use_legacy_board_dropdown_description) },
+          setting = kurobaSettings.application.useLegacyBoardDropdown,
+          requiresAppRestart = false
+        )
+      )
+
+      addSetting(
+        SettingUiElement.Bool(
+          title = { appResources.string(R.string.setting_gallery_pinch_to_zoom) },
+          description = { appResources.string(R.string.setting_gallery_pinch_to_zoom_description) },
+          setting = kurobaSettings.application.galleryPinchToZoom,
+          requiresAppRestart = false
+        )
+      )
+
+      addSetting(
+        SettingUiElement.Bool(
+          title = { appResources.string(R.string.setting_album_video_zoom) },
+          description = { appResources.string(R.string.setting_album_video_zoom_description) },
+          setting = kurobaSettings.application.albumVideoZoom,
+          requiresAppRestart = false
+        )
+      )
+
+      addSetting(
+        SettingUiElement.Range(
+          title = { appResources.string(R.string.setting_gallery_max_autoplays) },
+          description = { appResources.string(R.string.setting_gallery_max_autoplays_description) },
+          setting = kurobaSettings.application.galleryMaxAutoplays,
+          valueFormatter = { value -> value.toString() },
+          requiresAppRestart = false,
+          dependencies = listOf(kurobaSettings.application.highResVideoCellsAutoplay)
+        )
+      )
+
+      addSetting(
+        SettingUiElement.Bool(
           title = { appResources.string(R.string.setting_update_colors_for_text_selection_cursor) },
           description = { appResources.string(R.string.setting_update_colors_for_text_selection_cursor_description) },
           setting = kurobaSettings.application.colorizeTextSelectionCursors,

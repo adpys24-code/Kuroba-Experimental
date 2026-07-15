@@ -11,6 +11,7 @@ import com.github.k1rakishou.chan.core.manager.ChanThreadManager
 import com.github.k1rakishou.chan.core.manager.PostFilterManager
 import com.github.k1rakishou.chan.core.manager.ReplyManager
 import com.github.k1rakishou.chan.core.manager.SiteManager
+import com.github.k1rakishou.chan.core.repository.BoardFlagInfoRepository
 import com.github.k1rakishou.chan.core.site.http.HttpCallManager
 import com.github.k1rakishou.chan.core.site.settings.SiteCommonSettings
 import com.github.k1rakishou.chan.core.site.settings.SiteSetting
@@ -59,6 +60,8 @@ abstract class SiteBase(
     get() = injectedSiteDependencies.get().chanThreadManager
   val kurobaSettings: KurobaSettings
     get() = injectedSiteDependencies.get().kurobaSettings
+  val boardFlagInfoRepository: BoardFlagInfoRepository
+    get() = injectedSiteDependencies.get().boardFlagInfoRepository
 
   override val dependencies: SiteDependencies
     get() = injectedSiteDependencies.get()

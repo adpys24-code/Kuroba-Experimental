@@ -143,7 +143,13 @@ fun SettingUiElementWidget(
   val dialogFactory = activityDependencies().dialogFactory
   val appResources = appDependencies().appResources
   val appSettingsRestartTracker = appDependencies().appSettingsRestartTracker
+  val kurobaSettings = appDependencies().kurobaSettings
   val settingManipulationTask = rememberCoroutineTask(taskType = TaskType.SingleInstance)
+
+  val largeSizeUi = remember { kurobaSettings.application.useLargeSettingsUi.readBlocking() }
+  val titleFontSize = if (largeSizeUi) 18.ktu else 14.ktu
+  val descFontSize = if (largeSizeUi) 16.ktu else 12.ktu
+  val itemSpacing = if (largeSizeUi) 20.dp else 8.dp
 
   var rebuildSettingKey by remember { mutableIntStateOf(0) }
 
@@ -309,13 +315,13 @@ fun SettingUiElementWidget(
           alpha = if (enabled) 1f else .5f
         }
     ) {
-      Spacer(modifier = Modifier.height(8.dp))
+      Spacer(modifier = Modifier.height(itemSpacing))
 
       if (title.isNotNullNorBlank()) {
         KurobaComposeText(
           modifier = Modifier.wrapContentHeight(),
           text = title,
-          fontSize = 14.ktu,
+          fontSize = titleFontSize,
           color = chanTheme.textColorPrimaryCompose,
           fontWeight = FontWeight.Medium
         )
@@ -325,7 +331,7 @@ fun SettingUiElementWidget(
         KurobaComposeText(
           modifier = Modifier.wrapContentHeight(),
           text = description,
-          fontSize = 12.ktu,
+          fontSize = descFontSize,
           color = chanTheme.textColorSecondaryCompose
         )
       }
@@ -334,7 +340,7 @@ fun SettingUiElementWidget(
         KurobaComposeText(
           modifier = Modifier.wrapContentHeight(),
           text = currentValue,
-          fontSize = 14.ktu,
+          fontSize = titleFontSize,
           color = chanTheme.textColorHintCompose
         )
       }
@@ -391,7 +397,7 @@ fun SettingUiElementWidget(
         }
       }
 
-      Spacer(modifier = Modifier.height(8.dp))
+      Spacer(modifier = Modifier.height(itemSpacing))
     }
 
     if (checkboxChecked != null && settingUiElement is SettingUiElement.Bool) {

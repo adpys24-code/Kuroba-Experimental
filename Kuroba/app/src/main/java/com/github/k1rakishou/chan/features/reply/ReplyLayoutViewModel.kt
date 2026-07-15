@@ -536,6 +536,11 @@ class ReplyLayoutViewModel(
     withReplyLayoutState { replyLayoutState -> replyLayoutState.markUnmarkAsSpoiler(fileUuid, spoiler) }
   }
 
+  fun toggleSpoiler(replyFileAttachable: ReplyFileAttachable) {
+    val currentlySpoiler = replyFileAttachable.spoilerInfo?.markedAsSpoiler ?: false
+    markUnmarkAsSpoiler(replyFileAttachable.fileUuid, !currentlySpoiler)
+  }
+
   fun hasSelectedFiles(): Boolean {
     return withReplyLayoutState { replyLayoutState -> replyLayoutState.hasSelectedFiles() } ?: false
   }
@@ -840,6 +845,7 @@ class ReplyLayoutViewModel(
     fun hideProgressDialog()
 
     fun presentController(controller: BaseFloatingController)
+    fun presentController(controller: Controller)
     fun pushController(controller: Controller)
     fun showMediaReencodingController(attachedMedia: ReplyFileAttachable, fileSupportedForReencoding: Boolean)
     fun highlightQuotes(quotes: Set<PostDescriptor>)

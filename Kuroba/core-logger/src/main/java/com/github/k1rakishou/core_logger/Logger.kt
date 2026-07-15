@@ -64,10 +64,26 @@ object Logger {
     }
 
     @JvmStatic
+    fun d(tag: String, message: String, throwable: Throwable?) {
+        if (canLog()) {
+            Log.d(time + tagPrefix + tag, message, throwable)
+            logStorage.persistLog(LogStorage.LogLevel.Debug, tag, message, throwable)
+        }
+    }
+
+    @JvmStatic
     fun w(tag: String, message: String) {
         if (canLog()) {
             Log.w(time + tagPrefix + tag, message)
             logStorage.persistLog(LogStorage.LogLevel.Warning, tag, message)
+        }
+    }
+
+    @JvmStatic
+    fun w(tag: String, message: String, throwable: Throwable?) {
+        if (canLog()) {
+            Log.w(time + tagPrefix + tag, message, throwable)
+            logStorage.persistLog(LogStorage.LogLevel.Warning, tag, message, throwable)
         }
     }
 

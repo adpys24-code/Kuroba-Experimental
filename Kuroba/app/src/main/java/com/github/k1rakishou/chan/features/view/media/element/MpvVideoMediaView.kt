@@ -6,14 +6,17 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.net.Uri
+import android.util.TypedValue
 import android.view.GestureDetector
 import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.view.updateLayoutParams
 import androidx.core.view.contains
 import com.github.k1rakishou.chan.R
 import com.github.k1rakishou.chan.core.cache.CacheFileType
@@ -93,6 +96,26 @@ class MpvVideoMediaView(
 
   private val closeMediaActionHelper: CloseMediaActionHelper
   private val gestureDetector: GestureDetector
+  private val scaleGestureDetector: ScaleGestureDetector?
+
+  private var videoZoom = 1f
+  private var videoOffsetX = 0f
+  private var videoOffsetY = 0f
+  private var lastPanX: Float? = null
+  private var lastPanY: Float? = null
+  private var pinchFocusX = 0f
+  private var pinchFocusY = 0f
+  private var zoomAtPinchStart = 1f
+  private var spanAtPinchStart = 1f
+  private var smoothedSpan = 1f
+  private var smoothedPanX = 0f
+  private var smoothedPanY = 0f
+  private val zoomSpeedMultiplier: Float by lazy {
+    kurobaSettings.mpv.videoZoomSpeed.readBlocking().toFloat()
+  }
+  private val panSpeedMultiplier: Float by lazy {
+    kurobaSettings.mpv.videoPanSpeed.readBlocking().toFloat()
+  }
 
   private var _firstLoadOccurred = false
   private var _hasContent = false
@@ -133,6 +156,8 @@ class MpvVideoMediaView(
     mpvControlsBottomInset = findViewById(R.id.mpv_controls_insets_view)
     mpvSettings = findViewById(R.id.mpv_settings)
     mpvErrorMessage = findViewById(R.id.error_message)
+
+    applyControlBarDimensions()
 
     if (AppModuleAndroidUtils.isTablet) {
       actionStrip = findViewById<MediaViewerBottomActionStrip?>(R.id.left_action_strip)
@@ -234,9 +259,69 @@ class MpvVideoMediaView(
             false
           }
         },
-        onMediaLongClick = { mediaViewContract.onMediaLongClick(this, viewableMedia) }
+        onMediaLongClick = { mediaViewContract.onMediaLongClick(this, viewableMedia) },
+        onDoubleTapWhenZoomed = {
+          videoZoom = 1f
+          videoOffsetX = 0f
+          videoOffsetY = 0f
+          lastPanX = null
+          lastPanY = null
+          applyVideoZoom()
+        },
+        isZoomed = { videoZoom > 1f },
+        isLongPressAllowed = { !(videoZoom > 1f && !kurobaSettings.mpv.longPressWhenZoomed.readBlocking()) }
       )
     )
+
+    scaleGestureDetector = if (kurobaSettings.mpv.videoZoom.readBlocking()) {
+      ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+        override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
+          // Record absolute state at gesture start so zoom is computed from a fixed baseline.
+          // Using incremental scaleFactor accumulates jitter — holding fingers steady drifts.
+          zoomAtPinchStart = videoZoom
+          smoothedSpan = detector.currentSpan.coerceAtLeast(1f)
+          spanAtPinchStart = smoothedSpan
+          val container = actualVideoPlayerViewContainer
+          pinchFocusX = detector.focusX - container.width / 2f
+          pinchFocusY = detector.focusY - container.height / 2f
+          return true
+        }
+
+        override fun onScale(detector: ScaleGestureDetector): Boolean {
+          // Adaptive EMA: stronger smoothing at higher zoom speed to suppress amplified noise
+          val zoomEmaWeight = (1f - 0.18f / zoomSpeedMultiplier).coerceAtMost(0.97f)
+          smoothedSpan = smoothedSpan * zoomEmaWeight + detector.currentSpan * (1f - zoomEmaWeight)
+          val spanRatio = (smoothedSpan / spanAtPinchStart).coerceAtLeast(0.01f)
+          // Exponent: 2.2 at 1x, 20.0 at 10x, evenly scaled between
+          val zoomExp = 2.2 + (zoomSpeedMultiplier - 1.0) * 17.8 / 9.0
+          val newZoom = (zoomAtPinchStart * Math.pow(spanRatio.toDouble(), zoomExp).toFloat()).coerceIn(1f, 8f)
+          // Skip re-draw if zoom hasn't changed enough to be visible (~0.5%)
+          if (kotlin.math.abs(newZoom - videoZoom) < videoZoom * 0.005f) return true
+          val effectiveScale = newZoom / videoZoom
+
+          videoOffsetX = (videoOffsetX - pinchFocusX) * effectiveScale + pinchFocusX
+          videoOffsetY = (videoOffsetY - pinchFocusY) * effectiveScale + pinchFocusY
+
+          videoZoom = newZoom
+
+          val container = actualVideoPlayerViewContainer
+          if (videoZoom <= 1f) {
+            videoOffsetX = 0f
+            videoOffsetY = 0f
+          } else {
+            val maxOffsetX = container.width * (videoZoom - 1f) / 2f
+            val maxOffsetY = container.height * (videoZoom - 1f) / 2f
+            videoOffsetX = videoOffsetX.coerceIn(-maxOffsetX, maxOffsetX)
+            videoOffsetY = videoOffsetY.coerceIn(-maxOffsetY, maxOffsetY)
+          }
+
+          applyVideoZoom()
+          return true
+        }
+      })
+    } else {
+      null
+    }
 
     thumbnailMediaView.setOnTouchListener { v, event ->
       if (thumbnailMediaView.visibility != VISIBLE) {
@@ -253,11 +338,56 @@ class MpvVideoMediaView(
         return@setOnTouchListener false
       }
 
-      return@setOnTouchListener gestureDetector.onTouchEvent(event)
+      if (scaleGestureDetector != null) {
+        scaleGestureDetector.onTouchEvent(event)
+
+        // Prevent the parent ViewPager from stealing touch events while zoomed in
+        if (videoZoom > 1f) {
+          parent.requestDisallowInterceptTouchEvent(true)
+        }
+
+        // Pan with one finger while zoomed, but not while a pinch is active
+        if (videoZoom > 1f && !scaleGestureDetector.isInProgress
+          && event.pointerCount == 1 && event.actionMasked == MotionEvent.ACTION_MOVE) {
+          val container = actualVideoPlayerViewContainer
+          val curX = event.x
+          val curY = event.y
+          // EMA on raw position eliminates tremor before computing delta.
+          // Weight adapts to total multiplier (speed × zoom) so stutter doesn't grow with zoom.
+          if (lastPanX == null) { smoothedPanX = curX; smoothedPanY = curY }
+          val effectiveMultiplier = panSpeedMultiplier * videoZoom
+          val panEmaWeight = (1f - 0.15f / effectiveMultiplier).coerceAtMost(0.99f)
+          smoothedPanX = smoothedPanX * panEmaWeight + curX * (1f - panEmaWeight)
+          smoothedPanY = smoothedPanY * panEmaWeight + curY * (1f - panEmaWeight)
+          val dx = smoothedPanX - (lastPanX ?: smoothedPanX)
+          val dy = smoothedPanY - (lastPanY ?: smoothedPanY)
+          lastPanX = smoothedPanX
+          lastPanY = smoothedPanY
+          val maxOffsetX = container.width * (videoZoom - 1f) / 2f
+          val maxOffsetY = container.height * (videoZoom - 1f) / 2f
+          videoOffsetX = (videoOffsetX + dx * videoZoom * 5.0f * panSpeedMultiplier).coerceIn(-maxOffsetX, maxOffsetX)
+          videoOffsetY = (videoOffsetY + dy * videoZoom * 5.0f * panSpeedMultiplier).coerceIn(-maxOffsetY, maxOffsetY)
+          applyVideoZoom()
+        } else if (event.actionMasked == MotionEvent.ACTION_UP
+          || event.actionMasked == MotionEvent.ACTION_CANCEL
+          || event.pointerCount != 1) {
+          lastPanX = null
+          lastPanY = null
+        }
+      }
+
+      // Don't feed events to the tap/double-tap detector while a pinch is active.
+      // Cancel long press if the finger has moved — long press should only fire on stationary holds.
+      if (scaleGestureDetector == null || !scaleGestureDetector.isInProgress) {
+        gestureDetector.onTouchEvent(event)
+      }
+
+      return@setOnTouchListener true
     }
   }
 
   override fun onInterceptTouchEvent(ev: MotionEvent?): Boolean {
+    if (videoZoom > 1f) return false
     if (ev != null && closeMediaActionHelper.onInterceptTouchEvent(ev)) {
       return true
     }
@@ -266,11 +396,22 @@ class MpvVideoMediaView(
   }
 
   override fun onTouchEvent(event: MotionEvent): Boolean {
+    if (videoZoom > 1f) return false
     if (closeMediaActionHelper.onTouchEvent(event)) {
       return true
     }
 
     return super.onTouchEvent(event)
+  }
+
+  private fun applyVideoZoom() {
+    // Apply transform to the FrameLayout container, not the MPVView (SurfaceView) directly.
+    // Transforming a SurfaceView causes flicker because MPV renders asynchronously.
+    // The container is a regular View and composites cleanly via the hardware layer.
+    actualVideoPlayerViewContainer.scaleX = videoZoom
+    actualVideoPlayerViewContainer.scaleY = videoZoom
+    actualVideoPlayerViewContainer.translationX = videoOffsetX
+    actualVideoPlayerViewContainer.translationY = videoOffsetY
   }
 
   override fun draw(canvas: Canvas) {
@@ -332,6 +473,15 @@ class MpvVideoMediaView(
 
   override fun unbind() {
     destroyPlayer(isPausing = false, isDestroying = true, isBecomingInactive = false)
+
+    // Reset container transform so the next video starts unzoomed
+    videoZoom = 1f
+    videoOffsetX = 0f
+    videoOffsetY = 0f
+    actualVideoPlayerViewContainer.scaleX = 1f
+    actualVideoPlayerViewContainer.scaleY = 1f
+    actualVideoPlayerViewContainer.translationX = 0f
+    actualVideoPlayerViewContainer.translationY = 0f
 
     thumbnailMediaView.unbind()
     closeMediaActionHelper.onDestroy()
@@ -769,6 +919,19 @@ class MpvVideoMediaView(
     }
   }
 
+  private fun applyControlBarDimensions() {
+    val btnH = AppModuleAndroidUtils.dp(kurobaSettings.mpv.controlBarButtonHeight.readBlocking().toFloat())
+    val seekH = AppModuleAndroidUtils.dp(kurobaSettings.mpv.controlBarSeekbarHeight.readBlocking().toFloat())
+    val textSp = kurobaSettings.mpv.controlBarTextSize.readBlocking().toFloat()
+
+    listOf<View>(mpvMuteUnmute, mpvHwSw, mpvPlayPause, mpvSettings).forEach { btn ->
+      btn.updateLayoutParams<LinearLayout.LayoutParams> { height = btnH }
+    }
+    mpvVideoProgress.updateLayoutParams<LinearLayout.LayoutParams> { height = seekH }
+    mpvVideoPosition.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSp)
+    mpvVideoDuration.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSp)
+  }
+
   private suspend fun showMpvSettings() {
     val menuItems = mutableListOf<FloatingListMenuItem>()
 
@@ -875,7 +1038,10 @@ class MpvVideoMediaView(
     private val actualVideoView: MPVView,
     private val mediaViewContract: MediaViewContract,
     private val tryPreloadingFunc: () -> Boolean,
-    private val onMediaLongClick: () -> Unit
+    private val onMediaLongClick: () -> Unit,
+    private val onDoubleTapWhenZoomed: () -> Unit = {},
+    private val isZoomed: () -> Boolean = { false },
+    private val isLongPressAllowed: () -> Boolean = { true }
   ) : GestureDetector.SimpleOnGestureListener() {
 
     override fun onDown(e: MotionEvent): Boolean {
@@ -903,11 +1069,17 @@ class MpvVideoMediaView(
         return false
       }
 
+      if (isZoomed()) {
+        onDoubleTapWhenZoomed()
+        return true
+      }
+
       actualVideoView.cyclePause()
       return true
     }
 
     override fun onLongPress(e: MotionEvent) {
+      if (!isLongPressAllowed()) return
       onMediaLongClick()
     }
   }

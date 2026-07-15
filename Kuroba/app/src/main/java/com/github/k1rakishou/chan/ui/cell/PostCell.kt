@@ -35,7 +35,6 @@ import com.github.k1rakishou.chan.ui.cell.helpers.PostCommentLongtapDetector
 import com.github.k1rakishou.chan.ui.cell.helpers.PostViewFastMovementMethod
 import com.github.k1rakishou.chan.ui.cell.helpers.PostViewMovementMethod
 import com.github.k1rakishou.chan.ui.cell.post_thumbnail.PostImageThumbnailViewsContainer
-import com.github.k1rakishou.chan.ui.theme.widget.ColorizableAlternativeCardView
 import com.github.k1rakishou.chan.ui.view.DashedLineView
 import com.github.k1rakishou.chan.ui.view.PostCommentTextView
 import com.github.k1rakishou.chan.ui.view.ThumbnailView
@@ -117,8 +116,7 @@ class PostCell @JvmOverloads constructor(
   private lateinit var icons: PostIcons
   private lateinit var comment: PostCommentTextView
   private lateinit var replies: TextView
-  private lateinit var goToPostButton: ColorizableAlternativeCardView
-  private lateinit var goToPostButtonIcon: AppCompatImageView
+  private lateinit var goToPostButton: AppCompatImageView
   private lateinit var divider: View
   private lateinit var postAttentionLabel: DashedLineView
 
@@ -316,9 +314,9 @@ class PostCell @JvmOverloads constructor(
     comment.invalidate()
     replies.invalidate()
 
-    goToPostButtonIcon.setImageDrawable(
+    goToPostButton.setImageDrawable(
       themeEngine.tintDrawable(
-        goToPostButtonIcon.drawable,
+        goToPostButton.drawable,
         themeEngine.chanTheme.isBackColorDark
       )
     )
@@ -477,7 +475,6 @@ class PostCell @JvmOverloads constructor(
     divider = findViewById(com.github.k1rakishou.chan.R.id.divider)
     postAttentionLabel = findViewById(com.github.k1rakishou.chan.R.id.post_attention_label)
     goToPostButton = findViewById(com.github.k1rakishou.chan.R.id.go_to_post_button)
-    goToPostButtonIcon = findViewById(com.github.k1rakishou.chan.R.id.go_to_post_button_icon)
 
     title.textSize = textSizeSp.toFloat()
     title.gravity = GravityCompat.START

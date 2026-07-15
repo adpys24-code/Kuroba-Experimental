@@ -352,6 +352,30 @@ class ImageLoaderDeprecated(
       return null
     }
 
+    val inputFile = InputFile.JavaFile(fileLocation)
+
+    if (fileIsProbablyVideoInterruptible(fileLocation.name, inputFile)) {
+      val (width, height) = checkNotNull(activeListener.imageSize.size())
+      val key = MemoryCache.Key(fileLocation.absolutePath)
+      val fromCache = imageLoader.memoryCache?.get(key)?.bitmap
+      if (fromCache != null) {
+        return BitmapDrawable(context.resources, fromCache)
+      }
+      val decoded = decodedFilePreview(
+        isProbablyVideo = true,
+        inputFile = inputFile,
+        context = context,
+        width = width,
+        height = height,
+        scale = Scale.FIT,
+        addAudioIcon = false
+      )
+      if (decoded !is CachedTintedErrorDrawable) {
+        imageLoader.memoryCache?.set(key, MemoryCache.Value(decoded.bitmap))
+      }
+      return decoded
+    }
+
     // When using any transformations at all we won't be able to use HARDWARE bitmaps. We only really
     // need the RESIZE_TRANSFORMATION when highResCells setting is turned on because we load original
     // images which we then want to resize down to ThumbnailView dimensions.

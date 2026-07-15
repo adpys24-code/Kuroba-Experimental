@@ -42,6 +42,7 @@ import coil.request.ImageRequest
 import com.github.k1rakishou.chan.R
 import com.github.k1rakishou.chan.core.image.GrayscaleTransformation
 import com.github.k1rakishou.chan.features.reply.ReplyLayoutViewModel
+import com.github.k1rakishou.chan.utils.appDependencies
 import com.github.k1rakishou.chan.features.reply.data.ReplyFileAttachable
 import com.github.k1rakishou.chan.features.reply.data.ReplyLayoutState
 import com.github.k1rakishou.chan.features.reply.data.ReplyLayoutVisibility
@@ -71,7 +72,8 @@ internal fun ReplyAttachments(
   onAttachedMediaLongClicked: (ReplyFileAttachable) -> Unit,
   onRemoveAttachedMediaClicked: (ReplyFileAttachable) -> Unit,
   onAttachableSelectionChanged: (ReplyFileAttachable, Boolean) -> Unit,
-  onAttachableStatusIconButtonClicked: (ReplyFileAttachable) -> Unit
+  onAttachableStatusIconButtonClicked: (ReplyFileAttachable) -> Unit,
+  onSpoilerToggleClicked: (ReplyFileAttachable) -> Unit
 ) {
   val attachedMediaList by replyLayoutState.attachables
   val syntheticAttachables = replyLayoutState.syntheticAttachables
@@ -133,7 +135,8 @@ internal fun ReplyAttachments(
             onAttachedMediaLongClicked = onAttachedMediaLongClicked,
             onRemoveAttachedMediaClicked = onRemoveAttachedMediaClicked,
             onAttachableSelectionChanged = onAttachableSelectionChanged,
-            onAttachableStatusIconButtonClicked = onAttachableStatusIconButtonClicked
+            onAttachableStatusIconButtonClicked = onAttachableStatusIconButtonClicked,
+            onSpoilerToggleClicked = onSpoilerToggleClicked
           )
         }
       }
@@ -191,7 +194,8 @@ private fun AttachedMediaThumbnail(
   onAttachedMediaLongClicked: (ReplyFileAttachable) -> Unit,
   onRemoveAttachedMediaClicked: (ReplyFileAttachable) -> Unit,
   onAttachableSelectionChanged: (ReplyFileAttachable, Boolean) -> Unit,
-  onAttachableStatusIconButtonClicked: (ReplyFileAttachable) -> Unit
+  onAttachableStatusIconButtonClicked: (ReplyFileAttachable) -> Unit,
+  onSpoilerToggleClicked: (ReplyFileAttachable) -> Unit
 ) {
   val context = LocalContext.current
   val density = LocalDensity.current
@@ -337,6 +341,14 @@ private fun AttachedMediaThumbnail(
 
       Spacer(modifier = Modifier.width(2.dp))
 
+      SpoilerToggleButton(
+        replyLayoutEnabled = replyLayoutEnabled,
+        replyFileAttachable = replyFileAttachable,
+        onSpoilerToggleClicked = onSpoilerToggleClicked
+      )
+
+      Spacer(modifier = Modifier.width(2.dp))
+
       RemoveAttachableButton(
         replyLayoutEnabled = replyLayoutEnabled,
         onRemoveAttachedMediaClicked = onRemoveAttachedMediaClicked,
@@ -476,6 +488,36 @@ private fun RemoveAttachableButton(
       ),
     enabled = replyLayoutEnabled,
     drawableId = R.drawable.ic_baseline_clear_24,
+    iconTint = iconTint
+  )
+}
+
+@Composable
+private fun SpoilerToggleButton(
+  replyLayoutEnabled: Boolean,
+  replyFileAttachable: ReplyFileAttachable,
+  onSpoilerToggleClicked: (ReplyFileAttachable) -> Unit
+) {
+  val spoilerInfo = replyFileAttachable.spoilerInfo ?: return
+  if (!spoilerInfo.boardSupportsSpoilers) return
+
+  val showSpoilerButton = remember { appDependencies().kurobaSettings.application.showSpoilerButton.readBlocking() }
+  if (!showSpoilerButton) return
+
+  val isSpoiler = spoilerInfo.markedAsSpoiler
+  val iconTint = remember(isSpoiler) {
+    if (isSpoiler) IconTint.TintWithColor(Color(0xFF10b1e6L)) else IconTint.TintWithColor(Color.White.copy(alpha = 0.5f))
+  }
+
+  KurobaComposeIcon(
+    modifier = Modifier
+      .kurobaClickable(
+        enabled = replyLayoutEnabled,
+        bounded = false,
+        onClick = { onSpoilerToggleClicked(replyFileAttachable) }
+      ),
+    enabled = replyLayoutEnabled,
+    drawableId = R.drawable.ic_baseline_eye_24,
     iconTint = iconTint
   )
 }

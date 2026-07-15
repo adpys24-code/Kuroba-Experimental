@@ -74,7 +74,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         app:singleLine="true"
         tools:text="234 replies, 123 image " />
 
-    <com.github.k1rakishou.chan.ui.theme.widget.ColorizableAlternativeCardView
+    <androidx.appcompat.widget.AppCompatImageView
         android:id="@+id/go_to_post_button"
         android:layout_width="@dimen/go_to_post_button_width"
         android:layout_height="0dp"
@@ -82,18 +82,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         android:background="?attr/selectableItemBackground"
         android:clickable="true"
         android:focusable="true"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_baseline_navigate_next_24"
         android:visibility="gone"
-        app:cardElevation="0dp"
-        tools:visibility="visible">
-
-        <androidx.appcompat.widget.AppCompatImageView
-            android:id="@+id/go_to_post_button_icon"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:src="@drawable/ic_baseline_navigate_next_24" />
-
-    </com.github.k1rakishou.chan.ui.theme.widget.ColorizableAlternativeCardView>
+        tools:visibility="visible" />
 
     <View
         android:id="@+id/divider"

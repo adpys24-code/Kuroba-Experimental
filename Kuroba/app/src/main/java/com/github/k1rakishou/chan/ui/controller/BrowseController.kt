@@ -702,7 +702,26 @@ class BrowseController(
     }
   }
 
+  private fun openLegacyBoardDropdown() {
+    val controller = com.github.k1rakishou.chan.features.setup.boards.selection.LegacyBoardDropdownController(
+      context = context,
+      currentCatalogDescriptor = currentOpenedDescriptorStateManager.currentCatalogDescriptor,
+      onBoardSelected = { catalogDescriptor ->
+        if (currentOpenedDescriptorStateManager.currentCatalogDescriptor != catalogDescriptor) {
+          controllerScope.launch(Dispatchers.Main.immediate) { loadCatalog(catalogDescriptor) }
+        }
+      },
+      onOpenSitesSettings = { pushChildController(SitesSetupController(context)) }
+    )
+    presentController(controller)
+  }
+
   private fun openBoardSelectionController() {
+    if (kurobaSettings.application.useLegacyBoardDropdown.readBlocking()) {
+      openLegacyBoardDropdown()
+      return
+    }
+
      val boardSelectionController = BoardSelectionController(
       context = context,
       callback = object : BoardSelectionController.UserSelectionListener {

@@ -16,21 +16,60 @@ import com.github.k1rakishou.core_logger.Logger
 import com.github.k1rakishou.model.data.descriptor.ChanDescriptor
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.launch
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.CopyOnWriteArraySet
 
 class FirewallBypassManager(
   private val appScope: CoroutineScope,
   private val siteManager: SiteManager,
-  private val webViewTaskManager: WebViewTaskManager
+  private val webViewTaskManager: WebViewTaskManager,
+  private val currentOpenedDescriptorStateManager: CurrentOpenedDescriptorStateManager
 ) {
   @GuardedBy("itself")
   private val firewallSiteInfoMap = mutableMapOf<String, FirewallSiteInfo>()
   @GuardedBy("itself")
   private val hostLastTimeCheck = mutableMapOf<String, Long>()
 
+  // Domains that are "unlocked" for CF bypass popups — populated the first time the user
+  // navigates to a board/thread for a given site.
+  private val unlockedSiteDomains = CopyOnWriteArraySet<String>()
+
   private val rendezvousCoroutineExecutor = RendezvousCoroutineExecutor(appScope)
+
+  init {
+    appScope.launch {
+      siteManager.awaitUntilInitialized()
+      currentOpenedDescriptorStateManager.currentCatalogDescriptorFlow
+        .filterNotNull()
+        .collect { descriptor ->
+          val chanDescriptor = descriptor as? ChanDescriptor ?: return@collect
+          unlockDomainForDescriptor(chanDescriptor)
+        }
+    }
+    appScope.launch {
+      siteManager.awaitUntilInitialized()
+      currentOpenedDescriptorStateManager.currentThreadDescriptorFlow
+        .filterNotNull()
+        .collect { descriptor -> unlockDomainForDescriptor(descriptor) }
+    }
+  }
+
+  private fun unlockDomainForDescriptor(descriptor: ChanDescriptor) {
+    val domain = siteManager.bySiteDescriptorAndActive(descriptor.siteDescriptor())
+      ?.urlHandler
+      ?.desktopUrl(descriptor, null, null)
+      ?.toHttpUrlOrNull()
+      ?.domainOrHost()
+      ?: return
+
+    if (unlockedSiteDomains.add(domain)) {
+      Logger.debug(TAG) { "Unlocked CF bypass for domain: $domain" }
+    }
+  }
 
   suspend fun removeHostTimeCheckByChanDescriptor(chanDescriptor: ChanDescriptor) {
     siteManager.awaitUntilInitialized()
@@ -56,6 +95,14 @@ class FirewallBypassManager(
     onFinished: (success: Boolean) -> Unit
   ) {
     val domainOrHost = urlToOpen.domainOrHost()
+
+    if (!unlockedSiteDomains.contains(domainOrHost)) {
+      Logger.verbose(TAG) {
+        "onFirewallDetected(${firewallType}, ${urlToOpen}) skipping: user has not opened a board for this site yet"
+      }
+      onFinished.invoke(false)
+      return
+    }
 
     val showShowFirewallBypassScreen = synchronized(firewallSiteInfoMap) {
       val isCurrentlyShowing = firewallSiteInfoMap.get(domainOrHost)?.currentlyShowing == true

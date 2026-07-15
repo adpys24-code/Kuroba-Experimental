@@ -11,6 +11,7 @@ import com.github.k1rakishou.chan.core.manager.SiteManager
 import com.github.k1rakishou.chan.core.manager.ThirdEyeManager
 import com.github.k1rakishou.chan.core.site.SiteResolver
 import com.github.k1rakishou.chan.features.settings.AppSettingsRestartTracker
+import com.github.k1rakishou.chan.features.view.media.helper.ExoPlayerCache
 import com.github.k1rakishou.chan.features.toolbar.KurobaToolbarStateManager
 import com.github.k1rakishou.chan.features.webview.WebViewLastTouchPositionHolder
 import com.github.k1rakishou.chan.ui.compose.snackbar.manager.SnackbarManagerFactory
@@ -42,4 +43,5 @@ interface ApplicationDependencies {
   val webViewLastTouchPositionHolder: WebViewLastTouchPositionHolder
   val kurobaToolbarStateManager: KurobaToolbarStateManager
   val appSettingsRestartTracker: AppSettingsRestartTracker
+  val exoPlayerCache: ExoPlayerCache
 }

@@ -25,6 +25,7 @@ import com.github.k1rakishou.chan.features.reply.data.ReplyFileAttachable
 import com.github.k1rakishou.chan.features.reply.data.ReplyLayoutVisibility
 import com.github.k1rakishou.chan.features.search.remotemedia.ImageSearchController
 import com.github.k1rakishou.chan.ui.compose.providers.ComposeEntrypoint
+import com.github.k1rakishou.chan.ui.controller.FlagPickerController
 import com.github.k1rakishou.chan.ui.controller.FloatingListMenuController
 import com.github.k1rakishou.chan.ui.controller.ThreadControllerType
 import com.github.k1rakishou.chan.ui.controller.dialog.KurobaComposeDialogController
@@ -301,34 +302,26 @@ class ReplyLayoutView @JvmOverloads constructor(
       return null
     }
 
-    val floatingMenuItems = mutableListOf<FloatingListMenuItem>()
-
-    flagInfoList.forEach { boardFlag ->
-      floatingMenuItems += FloatingListMenuItem(
-        key = boardFlag.flagKey,
-        name = boardFlag.asUserReadableString(),
-        value = boardFlag
-      )
-    }
-
-    if (floatingMenuItems.isEmpty()) {
-      return null
-    }
-
     val selectedBoardFlag = suspendCancellableCoroutine<LoadBoardFlagsUseCase.FlagInfo?> { continuation ->
-      val floatingMenuScreen = FloatingListMenuController(
+      var settled = false
+      val flagPickerController = FlagPickerController(
         context = context,
-        items = floatingMenuItems,
-        itemClickListener = { clickedItem ->
-          val selectedFlagInfo = clickedItem.value as? LoadBoardFlagsUseCase.FlagInfo
-          continuation.resumeValueSafe(selectedFlagInfo)
+        flagInfoList = flagInfoList,
+        onFlagSelected = { selectedFlagInfo ->
+          if (!settled) {
+            settled = true
+            continuation.resumeValueSafe(selectedFlagInfo)
+          }
         },
-        menuDismissListener = {
-          continuation.resumeValueSafe(null)
+        onDismissed = {
+          if (!settled) {
+            settled = true
+            continuation.resumeValueSafe(null)
+          }
         }
       )
 
-      replyLayoutCallbacks.presentController(floatingMenuScreen)
+      replyLayoutCallbacks.presentController(flagPickerController)
     }
 
     return selectedBoardFlag

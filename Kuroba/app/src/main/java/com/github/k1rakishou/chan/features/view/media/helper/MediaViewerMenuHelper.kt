@@ -111,6 +111,14 @@ class MediaViewerMenuHelper(
       checked = kurobaSettings.application.useMpvVideoPlayer.readBlocking()
     )
 
+    if (kurobaSettings.mpv.videoZoom.readBlocking()) {
+      options += CheckableFloatingListMenuItem(
+        key = ACTION_LONG_PRESS_WHEN_ZOOMED,
+        name = getString(R.string.mpv_long_press_when_zoomed),
+        checked = kurobaSettings.mpv.longPressWhenZoomed.readBlocking()
+      )
+    }
+
     options += FloatingListMenuItem(
       key = ACTION_MEDIA_VIEWER_GESTURE_SETTINGS,
       name = getString(R.string.setting_media_viewer_gesture_settings),
@@ -183,6 +191,9 @@ class MediaViewerMenuHelper(
       ACTION_USE_MPV -> {
         kurobaSettings.application.useMpvVideoPlayer.toggleBlocking()
         handleClickedOption(ACTION_USE_MPV)
+      }
+      ACTION_LONG_PRESS_WHEN_ZOOMED -> {
+        kurobaSettings.mpv.longPressWhenZoomed.toggleBlocking()
       }
       ACTION_MEDIA_VIEWER_GESTURE_SETTINGS -> {
         val mediaViewerGesturesSettingsController = MediaViewerGesturesSettingsController(context)
@@ -276,6 +287,7 @@ class MediaViewerMenuHelper(
     const val ACTION_PAUSE_PLAYERS_WHEN_IN_BG = 112
     const val ACTION_VIEW_PAGER_AUTO_SWIPE = 113
     const val ACTION_REORDER_MEDIA_VIEWER_ACTIONS = 114
+    const val ACTION_LONG_PRESS_WHEN_ZOOMED = 115
 
     const val ACTION_MEDIA_VIEWER_ONE_OFFSCREEN_PAGE = 200
     const val ACTION_MEDIA_VIEWER_TWO_OFFSCREEN_PAGES = 201

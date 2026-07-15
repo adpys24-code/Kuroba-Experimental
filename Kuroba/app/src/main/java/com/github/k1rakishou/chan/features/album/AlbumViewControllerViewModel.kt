@@ -66,8 +66,11 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.google.android.exoplayer2.SimpleExoPlayer
 import okhttp3.HttpUrl
+import java.util.Collections
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 
@@ -88,6 +91,34 @@ class AlbumViewControllerViewModel(
   private val revealedSpoilerImagesManager: RevealedSpoilerImagesManager,
   private val hapticFeedbackManager: HapticFeedbackManager
 ) : KurobaViewModel() {
+  private val _activeVideoPlayers: MutableMap<SimpleExoPlayer, AtomicBoolean> =
+    Collections.synchronizedMap(LinkedHashMap())
+
+  var lastVideoClickPositionMs: Long = -1L
+  var isAnyVideoZoomed: Boolean = false
+
+  fun registerVideoPlayer(player: SimpleExoPlayer, released: AtomicBoolean) {
+    _activeVideoPlayers[player] = released
+  }
+
+  fun unregisterVideoPlayer(player: SimpleExoPlayer) {
+    _activeVideoPlayers.remove(player)
+  }
+
+  override fun onCleared() {
+    super.onCleared()
+    synchronized(_activeVideoPlayers) {
+      _activeVideoPlayers.forEach { (player, released) ->
+        if (released.compareAndSet(false, true)) {
+          player.stop()
+          player.release()
+          activeVideoPlayerCount.decrementAndGet()
+        }
+      }
+      _activeVideoPlayers.clear()
+    }
+  }
+
   private val _albumItemIdCounter = AtomicLong(0)
 
   val currentListenMode: AlbumViewController.ListenMode

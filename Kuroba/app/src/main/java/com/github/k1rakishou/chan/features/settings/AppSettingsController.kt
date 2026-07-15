@@ -51,7 +51,9 @@ import com.github.k1rakishou.chan.features.toolbar.state.ToolbarStateKind
 import com.github.k1rakishou.chan.ui.compose.components.KurobaComposeDivider
 import com.github.k1rakishou.chan.ui.compose.components.KurobaComposeMessage
 import com.github.k1rakishou.chan.ui.compose.components.KurobaComposeText
+import com.github.k1rakishou.chan.ui.compose.KurobaTextUnit
 import com.github.k1rakishou.chan.ui.compose.ktu
+import com.github.k1rakishou.chan.utils.appDependencies
 import com.github.k1rakishou.chan.ui.compose.lazylist.LazyColumnWithFastScroller
 import com.github.k1rakishou.chan.ui.compose.providers.LocalChanTheme
 import com.github.k1rakishou.chan.ui.compose.providers.LocalContentPaddings
@@ -204,6 +206,9 @@ class AppSettingsController(
     val contentPaddings = LocalContentPaddings.current
     val layoutDirection = LocalLayoutDirection.current
     val chanTheme = LocalChanTheme.current
+    val kurobaSettings = appDependencies().kurobaSettings
+    val largeSizeUi = remember { kurobaSettings.application.useLargeSettingsUi.readBlocking() }
+    val groupHeaderFontSize = if (largeSizeUi) 18.ktu else 16.ktu
 
     val lazyListState = rememberLazyListState()
     val settingUiElementWidgetState = rememberSettingUiElementWidgetState(appSettingsGraph = viewModel.appSettingsGraph)
@@ -348,7 +353,8 @@ class AppSettingsController(
             settingUiElementWidgetState = settingUiElementWidgetState,
             horizontalPadding = horizontalPadding,
             settingsScreen = settingsScreen,
-            navigationController = navigationController
+            navigationController = navigationController,
+            groupHeaderFontSize = groupHeaderFontSize
           )
         }
       }
@@ -451,7 +457,8 @@ class AppSettingsController(
     settingUiElementWidgetState: SettingUiElementWidgetState,
     horizontalPadding: Dp,
     settingsScreen: SettingsScreen?,
-    navigationController: NavigationController
+    navigationController: NavigationController,
+    groupHeaderFontSize: KurobaTextUnit = 16.ktu
   ) {
     if (settingsScreen == null) {
       return
@@ -487,7 +494,7 @@ class AppSettingsController(
                   top = 16.dp,
                   bottom = 8.dp
                 ),
-              fontSize = 16.ktu,
+              fontSize = groupHeaderFontSize,
               text = settingsGroup.title,
               color = chanTheme.textColorSecondaryCompose
             )

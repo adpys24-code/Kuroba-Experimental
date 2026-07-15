@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -94,6 +95,14 @@ fun AlbumItemsGrid(
       .collectLatest { firstVisibleItemIndex -> controllerViewModel.updateLastScrollPosition(firstVisibleItemIndex) }
   }
 
+  val visibleIndexRange by remember(state) {
+    derivedStateOf {
+      val info = state.layoutInfo.visibleItemsInfo
+      if (info.isEmpty()) IntRange.EMPTY
+      else info.first().index..info.last().index
+    }
+  }
+
   LazyVerticalGridWithFastScroller(
     modifier = Modifier.fillMaxSize(),
     columns = GridCells.Fixed(albumSpanCount),
@@ -120,8 +129,10 @@ fun AlbumItemsGrid(
           albumSpanCount = albumSpanCount,
           controllerKey = controllerKey,
           chanDescriptorUi = remember { currentDescriptor?.let { descriptor -> ChanDescriptorUi(descriptor) } },
+          controllerViewModel = controllerViewModel,
           albumItemData = albumItemData,
           downloadingAlbumItem = downloadingAlbumItems[albumItemData.id],
+          isVisible = index in visibleIndexRange,
           onClick = onClick,
           onLongClick = onLongClick,
           clearDownloadingAlbumItemState = clearDownloadingAlbumItemState

@@ -149,7 +149,8 @@ data class PostNoSubNo(val postNo: Long, val postSubNo: Long) : Parcelable
 
 @Parcelize
 data class MediaViewerOptions(
-  val mediaViewerOpenedFromAlbum: Boolean = false
+  val mediaViewerOpenedFromAlbum: Boolean = false,
+  val initialVideoPositionMs: Long = -1L
 ) : Parcelable
 
 sealed class ViewableMedia(

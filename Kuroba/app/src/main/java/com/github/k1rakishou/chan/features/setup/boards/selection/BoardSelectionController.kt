@@ -74,6 +74,7 @@ import com.github.k1rakishou.chan.utils.ViewModelScope
 import com.github.k1rakishou.common.isNotNullNorBlank
 import com.github.k1rakishou.core_themes.ThemeEngine
 import com.github.k1rakishou.core_themes.resolveTextColor
+import com.github.k1rakishou.model.data.descriptor.BoardDescriptor
 import com.github.k1rakishou.model.data.descriptor.ChanDescriptor
 import com.github.k1rakishou.model.data.descriptor.SiteDescriptor
 import kotlin.math.roundToInt
@@ -227,6 +228,14 @@ class BoardSelectionController(
     currentSearchQuery: String
   ) {
     when (selectableBoardElement) {
+      is BoardSelectionControllerViewModel.SelectableElement.DirectNavigation -> {
+        item(
+          key = "direct_nav_${selectableBoardElement.siteDescriptor}_${selectableBoardElement.boardCode}",
+          span = { GridItemSpan(maxLineSpan) }
+        ) {
+          DirectNavigationElement(selectableBoardElement)
+        }
+      }
       is BoardSelectionControllerViewModel.SelectableElement.SiteHeader -> {
         item(
           key = selectableBoardElement.siteDescriptor,
@@ -301,6 +310,38 @@ class BoardSelectionController(
   }
 
   @Composable
+  private fun DirectNavigationElement(
+    element: BoardSelectionControllerViewModel.SelectableElement.DirectNavigation
+  ) {
+    val chanTheme = LocalChanTheme.current
+
+    Row(
+      modifier = Modifier
+        .fillMaxWidth()
+        .background(chanTheme.accentColorCompose.copy(alpha = 0.12f))
+        .kurobaClickable(
+          bounded = true,
+          onClick = {
+            val boardDescriptor = BoardDescriptor.create(element.siteDescriptor, element.boardCode)
+            val catalogDescriptor = ChanDescriptor.CatalogDescriptor.create(boardDescriptor)
+            callback.onCatalogSelected(catalogDescriptor)
+            requireNavController().popController()
+          }
+        )
+        .padding(horizontal = 16.dp, vertical = 12.dp),
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      KurobaComposeText(
+        modifier = Modifier.weight(1f),
+        text = stringResource(id = R.string.board_selection_open_board_directly, element.boardCode),
+        fontSize = 15.ktu,
+        color = chanTheme.accentColorCompose,
+        maxLines = 1
+      )
+    }
+  }
+
+  @Composable
   private fun SearchInputHeader(searchQueryState: TextFieldState) {
     val chanTheme = LocalChanTheme.current
 
@@ -341,6 +382,7 @@ class BoardSelectionController(
   private fun HeaderElement(
     siteHeader: BoardSelectionControllerViewModel.SelectableElement.SiteHeader
   ) {
+    val chanTheme = LocalChanTheme.current
     Row(
       modifier = Modifier
         .fillMaxWidth()
@@ -348,17 +390,20 @@ class BoardSelectionController(
           bounded = true,
           onClick = { callback.onSiteSelected(siteHeader.siteDescriptor) }
         )
-        .padding(vertical = 4.dp),
+        .padding(horizontal = 16.dp, vertical = 4.dp),
       verticalAlignment = Alignment.CenterVertically
     ) {
-      Spacer(modifier = Modifier.width(8.dp))
-      Box(modifier = Modifier.size(32.dp)) {
+      Box(modifier = Modifier.size(40.dp)) {
         SiteIconElement(siteDescriptor = siteHeader.siteDescriptor)
       }
       Spacer(modifier = Modifier.width(8.dp))
-      KurobaComposeText(text = siteHeader.name)
-      Spacer(modifier = Modifier.width(8.dp))
-      KurobaComposeDivider(modifier = Modifier.weight(1f))
+      KurobaComposeText(
+        modifier = Modifier.weight(1f),
+        text = siteHeader.name,
+        fontSize = 18.ktu,
+        color = chanTheme.textColorPrimaryCompose,
+        maxLines = 1
+      )
     }
   }
 

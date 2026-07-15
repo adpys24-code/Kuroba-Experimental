@@ -132,6 +132,71 @@ class PluginsSettingsScreenBuilder(
         )
       )
     }
+
+    addGroup(
+      key = "mpv_ui",
+      title = appResources.string(R.string.settings_plugins_mpv_control_bar_group)
+    ) {
+      addSetting(
+        SettingUiElement.Range(
+          title = { appResources.string(R.string.settings_plugins_mpv_button_height) },
+          description = { appResources.string(R.string.settings_plugins_mpv_button_height_description) },
+          setting = kurobaSettings.mpv.controlBarButtonHeight,
+          valueFormatter = { value -> "${value}dp" },
+          dependencies = listOf(kurobaSettings.application.useMpvVideoPlayer)
+        )
+      )
+
+      addSetting(
+        SettingUiElement.Range(
+          title = { appResources.string(R.string.settings_plugins_mpv_seekbar_height) },
+          description = { appResources.string(R.string.settings_plugins_mpv_seekbar_height_description) },
+          setting = kurobaSettings.mpv.controlBarSeekbarHeight,
+          valueFormatter = { value -> "${value}dp" },
+          dependencies = listOf(kurobaSettings.application.useMpvVideoPlayer)
+        )
+      )
+
+      addSetting(
+        SettingUiElement.Range(
+          title = { appResources.string(R.string.settings_plugins_mpv_text_size) },
+          description = { appResources.string(R.string.settings_plugins_mpv_text_size_description) },
+          setting = kurobaSettings.mpv.controlBarTextSize,
+          valueFormatter = { value -> "${value}sp" },
+          dependencies = listOf(kurobaSettings.application.useMpvVideoPlayer)
+        )
+      )
+
+      addSetting(
+        SettingUiElement.Bool(
+          title = { appResources.string(R.string.settings_plugins_mpv_video_zoom) },
+          description = { appResources.string(R.string.settings_plugins_mpv_video_zoom_description) },
+          setting = kurobaSettings.mpv.videoZoom,
+          requiresAppRestart = false,
+          dependencies = listOf(kurobaSettings.application.useMpvVideoPlayer)
+        )
+      )
+
+      addSetting(
+        SettingUiElement.Range(
+          title = { appResources.string(R.string.settings_plugins_mpv_zoom_speed) },
+          description = { appResources.string(R.string.settings_plugins_mpv_zoom_speed_description) },
+          setting = kurobaSettings.mpv.videoZoomSpeed,
+          valueFormatter = { value -> "${value}x" },
+          dependencies = listOf(kurobaSettings.application.useMpvVideoPlayer)
+        )
+      )
+
+      addSetting(
+        SettingUiElement.Range(
+          title = { appResources.string(R.string.settings_plugins_mpv_pan_speed) },
+          description = { appResources.string(R.string.settings_plugins_mpv_pan_speed_description) },
+          setting = kurobaSettings.mpv.videoPanSpeed,
+          valueFormatter = { value -> "${value}x" },
+          dependencies = listOf(kurobaSettings.application.useMpvVideoPlayer)
+        )
+      )
+    }
   }
 
   private suspend fun showOptions(context: Context, settingActions: SettingActions) {

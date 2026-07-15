@@ -104,7 +104,7 @@ fun KurobaDrawer(
   onHistoryEntryViewLongClicked: (NavigationHistoryEntry) -> Unit,
   onHistoryDeleteClicked: (NavigationHistoryEntry) -> Unit,
   onHistoryEntrySelectionChanged: (Boolean, NavigationHistoryEntry) -> Unit,
-  kurobaComposeBottomPanel: @Composable () -> Unit
+  kurobaComposeBottomPanel: (@Composable () -> Unit)?
 ) {
   val chanTheme = LocalChanTheme.current
   val bgColor = chanTheme.backColorCompose
@@ -175,7 +175,7 @@ fun KurobaDrawer(
       }
     }
 
-    kurobaComposeBottomPanel()
+    kurobaComposeBottomPanel?.invoke()
   }
 }
 

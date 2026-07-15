@@ -951,13 +951,15 @@ class ManagerModule {
   fun provideFirewallBypassManager(
     appScope: CoroutineScope,
     siteManager: SiteManager,
-    webViewTaskManager: WebViewTaskManager
+    webViewTaskManager: WebViewTaskManager,
+    currentOpenedDescriptorStateManager: CurrentOpenedDescriptorStateManager
   ): FirewallBypassManager {
     deps("FirewallBypassManager")
     return FirewallBypassManager(
       appScope = appScope,
       siteManager = siteManager,
-      webViewTaskManager = webViewTaskManager
+      webViewTaskManager = webViewTaskManager,
+      currentOpenedDescriptorStateManager = currentOpenedDescriptorStateManager
     )
   }
 

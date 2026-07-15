@@ -202,6 +202,7 @@ Re-enable this permission in the app settings if you permanently disabled it."</
     <string name="action_download_content">Download file</string>
     <string name="action_download_content_with_options">Download file (show options)</string>
     <string name="action_album_show_image_details">Show image details</string>
+    <string name="action_album_seamless_video_continue">Seamlessly continue video</string>
     <string name="action_open_in_browser">Open in browser or external application</string>
     <string name="action_media_search">Media search</string>
     <string name="action_share_media_url">Share media url</string>
@@ -485,6 +486,7 @@ Usually that means that you forgot to remove a space from the beginning or the e
     <string name="reply_name">Name</string>
     <string name="reply_options">Options</string>
     <string name="reply_flag">Flag</string>
+    <string name="reply_flag_selector_default_label">Geographic Location</string>
     <string name="reply_subject">Subject</string>
     <string name="reply_make_new_thread_hint">Creating a new thread</string>
     <string name="reply_reply_in_thread_hint">Replying in a thread</string>
@@ -708,6 +710,14 @@ Usually that means that you forgot to remove a space from the beginning or the e
     <string name="setting_post_thumbnail_scaling_fit_center">Fit center</string>
     <string name="setting_post_thumbnail_scaling_center_crop">Center crop</string>
     <string name="setting_reorder_bottom_nav_view_buttons">Reorder bottom navigation view buttons</string>
+    <string name="setting_use_bottom_navigation">Use bottom navigation bar</string>
+    <string name="setting_use_bottom_navigation_description">Show a persistent navigation bar at the bottom of the screen (restores classic layout). Requires restart.</string>
+    <string name="setting_never_hide_toolbar">Never hide the toolbar</string>
+    <string name="setting_never_hide_toolbar_description">Keep the toolbar always visible when scrolling. By default the toolbar hides on scroll.</string>
+    <string name="board_selection_open_sites_settings">Set up sites…</string>
+    <string name="board_selection_open_board_directly">Open /%1$s/</string>
+    <string name="setting_use_classic_board_dropdown">Use classic board dropdown</string>
+    <string name="setting_use_classic_board_dropdown_description">Show the old-style floating board list dialog when switching boards, instead of the new board picker screen.</string>
 
     <!-- Appearance post group -->
     <string name="setting_post_full_date">Show the full date on posts</string>
@@ -761,6 +771,26 @@ Usually that means that you forgot to remove a space from the beginning or the e
     <string name="setting_media_viewer_two_offscreen_page">Two offscreen pages (5 pages total, may become laggy on some devices)</string>
     <string name="setting_images_high_res">High resolution cells</string>
     <string name="setting_images_high_res_description">Make the album view and card catalog images higher resolution by pre-rescaling full size images.</string>
+    <string name="setting_high_res_gif_cells">High resolution GIF cells</string>
+    <string name="setting_high_res_gif_cells_description">Load the full GIF file as the cell thumbnail instead of the small board-served thumbnail. Coil renders the first frame. Protected by the 5MB size limit.</string>
+    <string name="setting_high_res_mp4_cells">High resolution MP4 cells</string>
+    <string name="setting_high_res_mp4_cells_description">Extract a video frame from cached MP4 files and use it as the cell thumbnail. Only works for MP4s that have already been prefetched/downloaded. Requires Prefetch media to be enabled.</string>
+    <string name="setting_high_res_webm_cells">High resolution WebM cells</string>
+    <string name="setting_high_res_webm_cells_description">Extract a video frame from cached WebM files and use it as the cell thumbnail. WARNING: Frame extraction for WebM can take 5-10+ seconds per file and may freeze the UI. Only enable if you have fast hardware.</string>
+    <string name="setting_high_res_video_cells_autoplay">Autoplay video cells in gallery</string>
+    <string name="setting_high_res_video_cells_autoplay_description">When enabled, high-res video cells start playing immediately. When disabled, they start paused and must be tapped to play.</string>
+    <string name="setting_use_legacy_board_dropdown">Use compact board picker</string>
+    <string name="setting_use_legacy_board_dropdown_description">Replace the full-screen board picker with a compact floating list. Searching always finds boards from all available boards.</string>
+    <string name="setting_gallery_pinch_to_zoom">Pinch to change gallery columns</string>
+    <string name="setting_gallery_pinch_to_zoom_description">Pinch in/out in the gallery to quickly change the number of columns. The new column count is saved automatically.</string>
+    <string name="setting_album_video_zoom">Video cell zoom and pan</string>
+    <string name="setting_album_video_zoom_description">Pinch to zoom into a playing video cell and drag to pan around. Double-tap to reset zoom.</string>
+    <string name="setting_gallery_max_autoplays">Max simultaneous video autoplays</string>
+    <string name="setting_gallery_max_autoplays_description">Maximum number of videos that autoplay at the same time in the gallery (1–8). GIFs are not affected. Greyed out when video autoplay is disabled.</string>
+    <string name="setting_show_spoiler_button">Show spoiler button on attachments</string>
+    <string name="setting_show_spoiler_button_description">Show a quick-tap spoiler toggle button directly on attachment thumbnails (on boards that support spoilers). If disabled, spoilers can still be set via long-press on the attachment.</string>
+    <string name="setting_use_large_settings_ui">Classic settings UI</string>
+    <string name="setting_use_large_settings_ui_description">Restore the classic settings UI sizing that was removed in newer versions (title 16sp, description 14sp, headers 18sp). Requires no restart.</string>
     <string name="setting_custom_user_agent">Custom user agent</string>
     <string name="setting_custom_user_agent_description">By default, currently installed WebView\'s user-agent is used for all requests (and for CloudFlare bypass). But it may not work in some situations. So if you experience problems with bypassing CloudFlare try changing this setting. Set it to empty string to use the WebView\'s user agent again.\n\nCurrent WebView user agent:\n\'%1$s\'</string>
 
@@ -860,6 +890,21 @@ Usually that means that you forgot to remove a space from the beginning or the e
     <string name="settings_plugins_libs_delete_old_mpv_libs">Delete old mpv libraries</string>
     <string name="settings_plugins_libs_install_libs_from_github">Install mpv libraries from Github</string>
     <string name="settings_plugins_libs_install_libs_from_local_directory">Install mpv libraries from local directory</string>
+    <string name="settings_plugins_mpv_control_bar_group">MPV control bar dimensions</string>
+    <string name="settings_plugins_mpv_button_height">Button height (dp)</string>
+    <string name="settings_plugins_mpv_button_height_description">Height of the mute/HW-SW/play/settings buttons. Default: 38</string>
+    <string name="settings_plugins_mpv_seekbar_height">Seekbar row height (dp)</string>
+    <string name="settings_plugins_mpv_seekbar_height_description">Height of the seekbar row. Default: 36</string>
+    <string name="settings_plugins_mpv_text_size">Timestamp text size (sp)</string>
+    <string name="settings_plugins_mpv_text_size_description">Font size of the time position and duration labels. Default: 14</string>
+    <string name="settings_plugins_mpv_seekbar_thickness">Seekbar track thickness (dp)</string>
+    <string name="settings_plugins_mpv_seekbar_thickness_description">Thickness of the seekbar track line. Default: 1</string>
+    <string name="settings_plugins_mpv_video_zoom">Pinch to zoom video</string>
+    <string name="settings_plugins_mpv_video_zoom_description">Enables pinch-to-zoom and pan in the video player. Double-tap to reset zoom.</string>
+    <string name="settings_plugins_mpv_zoom_speed">Zoom speed</string>
+    <string name="settings_plugins_mpv_zoom_speed_description">How fast pinch-to-zoom accelerates. 1x = default.</string>
+    <string name="settings_plugins_mpv_pan_speed">Pan speed</string>
+    <string name="settings_plugins_mpv_pan_speed_description">How fast one-finger panning moves the video. 1x = default.</string>
     <string name="settings_plugins_libs_local_installation_dialog_title">Local installation info</string>
     <string name="settings_plugins_libs_local_installation_dialog_description">Local mpv library installation is basically the same thing as simply moving pre-built .so files to \'%1$s\' directory. You will have to select a directory where the .so files are located. The libraries must have specific names because no renaming is being done on the libraries they are only moved from one directory to another. You can check out the existing pre-built libraries and how they are named in this repository: https://github.com/K1rakishou/KurobaEx-mpv-libs The libraries must be built for a specific ABI (Application binary interface). The ABIs this phones supports are: \'%2$s\'. If you attempt to load libraries built for an ABI not supported by your phone the application may crash. The instructions on how to build the libraries by yourself can be found in the main application Github repository.</string>
 
@@ -1444,6 +1489,7 @@ If you ever log out or if the passcode expires you will have to change reply mod
     <string name="mpv_switching_to_hw_decoding">Switching to hardware decoding</string>
     <string name="mpv_fast_video_decoding">Fast video decoding mode</string>
     <string name="mpv_use_gpu_next_vo">Use gpu_next video output</string>
+    <string name="mpv_long_press_when_zoomed">Long press menu while zoomed</string>
     <string name="mpv_library_load_error">Failed to load mpv native libraries.
 Check whether the libraries are installed correctly or installed at all.
 The simplest way to do that is to fully reinstall them (Go to Settings -> Plugins -> Click \'Mpv libraries status\').

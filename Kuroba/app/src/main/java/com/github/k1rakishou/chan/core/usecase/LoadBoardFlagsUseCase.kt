@@ -33,10 +33,11 @@ class LoadBoardFlagsUseCase(
           (result as ModularResult.Value).value
         }
 
-        val flagSelector = document.selectFirst("select[class=flagSelector]")
-        if (flagSelector == null) {
-          return@Try null
-        }
+        // Use .flagSelector (class selector) instead of [class=flagSelector] (exact match)
+        // so it still works if 4chan adds other CSS classes to the element
+        val flagSelector = document.selectFirst("select.flagSelector")
+          ?: document.selectFirst("select[name=flag]")
+          ?: return@Try null
 
         val flags = mutableListOf<FlagInfo>()
 
@@ -57,9 +58,14 @@ class LoadBoardFlagsUseCase(
           val flagKey = matcher.groupOrNull(1) ?: return@forEach
           val flagDescription = matcher.groupOrNull(2) ?: return@forEach
 
+          // HTML scraper only triggers for boards with custom selectable flags (board_flags),
+          // not for country_flags boards — so board-specific CDN path is always correct here.
+          val iconUrl = if (flagKey == "0") null
+          else "https://s.4cdn.org/image/flags/${boardDescriptor.boardCode}/${flagKey.lowercase()}.gif"
           flags += FlagInfo(
             flagKey = flagKey,
-            flagDescription = flagDescription
+            flagDescription = flagDescription,
+            iconUrl = iconUrl
           )
         }
 
@@ -70,7 +76,8 @@ class LoadBoardFlagsUseCase(
 
   data class FlagInfo(
     val flagKey: String,
-    val flagDescription: String
+    val flagDescription: String,
+    val iconUrl: String? = null
   ) {
 
     fun asUserReadableString(): String {

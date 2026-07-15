@@ -13,6 +13,7 @@ import com.github.k1rakishou.chan.core.mpv.MPVLib.mpvFormat.MPV_FORMAT_INT64
 import com.github.k1rakishou.chan.core.mpv.MPVLib.mpvFormat.MPV_FORMAT_NONE
 import com.github.k1rakishou.chan.core.mpv.MPVLib.mpvFormat.MPV_FORMAT_STRING
 import com.github.k1rakishou.common.AppConstants
+import com.github.k1rakishou.common.DoNotStrip
 import com.github.k1rakishou.core_logger.Logger
 import com.github.k1rakishou.model.util.ChanPostUtils
 import java.io.File
@@ -26,6 +27,7 @@ import kotlin.reflect.KProperty
  * NATIVE LIBRARIES DEPEND ON THE CLASS PACKAGE!
  * */
 
+@DoNotStrip
 class MPVView(
     context: Context,
     attrs: AttributeSet?
@@ -33,6 +35,7 @@ class MPVView(
     private var filePath: String? = null
     private var surfaceAttached = false
     private var _initialized = false
+    private var _gpuNext: Boolean = false
 
     val initialized: Boolean
         get() = _initialized
@@ -62,7 +65,7 @@ class MPVView(
 
         // hwdec
         val hwdec = if (hardwareDecoding) {
-            "mediacodec,mediacodec-copy"
+            "mediacodec-copy"
         } else {
             "no"
         }
@@ -180,6 +183,7 @@ class MPVView(
     }
 
     fun reloadUseGpuNext(gpuNext: Boolean) {
+        _gpuNext = gpuNext
         MPVLib.mpvSetOptionString("vo", if (gpuNext) "gpu-next" else "gpu")
     }
 
@@ -326,6 +330,10 @@ class MPVView(
 
     fun cycleHwdec() = MPVLib.mpvCommand(arrayOf("cycle-values", "hwdec", "mediacodec-copy", "no"))
 
+    fun initGpuNext(gpuNext: Boolean) {
+        _gpuNext = gpuNext
+    }
+
     fun cycleSpeed() {
         val speeds = arrayOf(0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0)
         val currentSpeed = playbackSpeed ?: 1.0
@@ -345,7 +353,7 @@ class MPVView(
             filePath = null
         } else {
             // We disable video output when the context disappears, enable it back
-            MPVLib.mpvSetPropertyString("vo", "gpu")
+            MPVLib.mpvSetPropertyString("vo", if (_gpuNext) "gpu-next" else "gpu")
         }
 
         surfaceAttached = true

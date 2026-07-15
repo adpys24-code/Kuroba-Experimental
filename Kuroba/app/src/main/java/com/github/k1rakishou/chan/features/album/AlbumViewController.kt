@@ -3,13 +3,25 @@ package com.github.k1rakishou.chan.features.album
 import android.content.Context
 import android.os.Parcelable
 import android.view.MotionEvent
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -130,6 +142,14 @@ class AlbumViewController(
             stringId = R.string.setting_album_span_count,
             onClick = { controllerScope.launch { onChangeAlbumColumnsCountClicked() } }
           )
+
+          withCheckableOverflowMenuItem(
+            id = ACTION_TOGGLE_SEAMLESS_VIDEO_CONTINUE,
+            stringId = R.string.action_album_seamless_video_continue,
+            visible = true,
+            checked = kurobaSettings.application.albumVideoSeamlessContinue.readBlocking(),
+            onClick = { controllerScope.launch { kurobaSettings.application.albumVideoSeamlessContinue.toggle() } }
+          )
         }
       }
     )
@@ -244,6 +264,7 @@ class AlbumViewController(
   override fun ScreenContent() {
     val density = LocalDensity.current
     val coroutineTask = rememberSingleInstanceCoroutineTask()
+    val coroutineScope = rememberCoroutineScope()
 
     val albumSpanCountMut by viewModel.albumSpanCount.collectAsState()
     val albumSpanCount = albumSpanCountMut
@@ -257,41 +278,98 @@ class AlbumViewController(
       return
     }
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-      val actualSpanCount = remember(albumSpanCount, maxWidth) {
+    val pinchToZoomEnabled = remember { kurobaSettings.application.galleryPinchToZoom.readBlocking() }
+
+    // pinchSpanCount must be initialized after resolving the actual span, so use a state holder
+    // that lives outside BoxWithConstraints but is updated once layout is known
+    var pinchSpanCount by remember(albumSpanCount) { mutableIntStateOf(-1) }
+
+    BoxWithConstraints(
+      modifier = Modifier
+        .fillMaxSize()
+        .then(
+          if (pinchToZoomEnabled) {
+            Modifier.pointerInput(Unit) {
+              awaitEachGesture {
+                var accumulator = 1f
+                var pointerCount = 0
+                var blockedByVideoZoom = false
+                do {
+                  val event = awaitPointerEvent()
+                  val currentCount = event.changes.count { it.pressed }
+                  if (currentCount >= 2) {
+                    pointerCount = currentCount
+                    // Once a video is zoomed at any point in this gesture, block for the whole gesture
+                    if (viewModel.isAnyVideoZoomed) blockedByVideoZoom = true
+                    if (!blockedByVideoZoom) {
+                      accumulator *= event.calculateZoom()
+                      val stepThreshold = 1.4f
+                      while (accumulator >= stepThreshold) {
+                        accumulator /= stepThreshold
+                        pinchSpanCount = (pinchSpanCount - 1).coerceAtLeast(1)
+                      }
+                      while (accumulator <= 1f / stepThreshold) {
+                        accumulator *= stepThreshold
+                        pinchSpanCount = (pinchSpanCount + 1).coerceAtMost(6)
+                      }
+                    }
+                    event.changes.forEach { it.consume() }
+                  }
+                } while (event.changes.any { it.pressed })
+                if (pointerCount >= 2) {
+                  coroutineScope.launch {
+                    kurobaSettings.application.albumSpanCount.writeAsync(pinchSpanCount)
+                  }
+                }
+              }
+            }
+          } else Modifier
+        )
+    ) {
+      val resolvedSpanCount = remember(albumSpanCount, maxWidth) {
         with(density) { calculateActualSpanCount(albumSpanCount, maxWidth.roundToPx()) }
       }
+      if (pinchSpanCount == -1) pinchSpanCount = resolvedSpanCount
+      val actualSpanCount = pinchSpanCount.coerceAtLeast(1)
 
-      if (albumLayoutGridMode) {
-        AlbumItemsGrid(
-          controllerKey = controllerKey,
-          controllerViewModel = viewModel,
-          albumSpanCount = actualSpanCount,
-          onClick = { albumItemData ->
-            coroutineTask.launch { onImageClick(albumItemData) }
-          },
-          onLongClick = { albumItemData ->
-            coroutineTask.launch { onImageLongClick(albumItemData) }
-          },
-          clearDownloadingAlbumItemState = { downloadingAlbumItem ->
-            viewModel.clearDownloadingAlbumItemState(downloadingAlbumItem)
-          }
-        )
-      } else {
-        AlbumItemsStaggeredGrid(
-          controllerKey = controllerKey,
-          controllerViewModel = viewModel,
-          albumSpanCount = actualSpanCount,
-          onClick = { albumItemData ->
-            coroutineTask.launch { onImageClick(albumItemData) }
-          },
-          onLongClick = { albumItemData ->
-            coroutineTask.launch { onImageLongClick(albumItemData) }
-          },
-          clearDownloadingAlbumItemState = { downloadingAlbumItem ->
-            viewModel.clearDownloadingAlbumItemState(downloadingAlbumItem)
-          }
-        )
+      AnimatedContent(
+        targetState = actualSpanCount,
+        transitionSpec = {
+          (fadeIn() + scaleIn(initialScale = 0.92f)) togetherWith (fadeOut() + scaleOut(targetScale = 0.92f))
+        },
+        label = "GalleryColumnTransition"
+      ) { spanCount ->
+        if (albumLayoutGridMode) {
+          AlbumItemsGrid(
+            controllerKey = controllerKey,
+            controllerViewModel = viewModel,
+            albumSpanCount = spanCount,
+            onClick = { albumItemData ->
+              coroutineTask.launch { onImageClick(albumItemData) }
+            },
+            onLongClick = { albumItemData ->
+              coroutineTask.launch { onImageLongClick(albumItemData) }
+            },
+            clearDownloadingAlbumItemState = { downloadingAlbumItem ->
+              viewModel.clearDownloadingAlbumItemState(downloadingAlbumItem)
+            }
+          )
+        } else {
+          AlbumItemsStaggeredGrid(
+            controllerKey = controllerKey,
+            controllerViewModel = viewModel,
+            albumSpanCount = spanCount,
+            onClick = { albumItemData ->
+              coroutineTask.launch { onImageClick(albumItemData) }
+            },
+            onLongClick = { albumItemData ->
+              coroutineTask.launch { onImageLongClick(albumItemData) }
+            },
+            clearDownloadingAlbumItemState = { downloadingAlbumItem ->
+              viewModel.clearDownloadingAlbumItemState(downloadingAlbumItem)
+            }
+          )
+        }
       }
 
       SnackbarContainer(
@@ -407,6 +485,10 @@ class AlbumViewController(
     val transitionThumbnailUrl = albumItemData.spoilerThumbnailImageUrl
       ?: albumItemData.thumbnailImageUrl
 
+    val seamless = kurobaSettings.application.albumVideoSeamlessContinue.readBlocking()
+    val initialPositionMs = if (seamless) viewModel.lastVideoClickPositionMs else -1L
+    viewModel.lastVideoClickPositionMs = -1L
+
     when (chanDescriptor) {
       is ChanDescriptor.ICatalogDescriptor -> {
         MediaViewerActivity.catalogMedia(
@@ -416,7 +498,8 @@ class AlbumViewController(
           transitionThumbnailUrl = transitionThumbnailUrl.toString(),
           lastTouchCoordinates = globalWindowInsetsManager.lastTouchCoordinates(),
           mediaViewerOptions = MediaViewerOptions(
-            mediaViewerOpenedFromAlbum = true
+            mediaViewerOpenedFromAlbum = true,
+            initialVideoPositionMs = initialPositionMs
           )
         )
       }
@@ -429,7 +512,8 @@ class AlbumViewController(
           transitionThumbnailUrl = transitionThumbnailUrl.toString(),
           lastTouchCoordinates = globalWindowInsetsManager.lastTouchCoordinates(),
           mediaViewerOptions = MediaViewerOptions(
-            mediaViewerOpenedFromAlbum = true
+            mediaViewerOpenedFromAlbum = true,
+            initialVideoPositionMs = initialPositionMs
           )
         )
       }
@@ -537,6 +621,7 @@ class AlbumViewController(
     private const val ACTION_ENTER_DOWNLOAD_MODE = 2
     private const val ACTION_TOGGLE_IMAGE_DETAILS = 3
     private const val ACTION_ALBUM_COLUMNS_COUNT = 4
+    private const val ACTION_TOGGLE_SEAMLESS_VIDEO_CONTINUE = 5
 
     private const val ACTION_TOGGLE_SELECTION = 1
     private const val ACTION_DOWNLOAD_SELECTED_IMAGES = 2

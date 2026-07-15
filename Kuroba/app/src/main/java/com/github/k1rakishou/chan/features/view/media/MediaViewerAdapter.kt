@@ -188,10 +188,15 @@ class MediaViewerAdapter(
         )
       }
       is ViewableMedia.Video -> {
+        val initialPosMs = viewModel.mediaViewerOptions.value.initialVideoPositionMs
         if (kurobaSettings.application.useMpvVideoPlayer.readBlocking()) {
           val initialMediaViewState = viewModel.getPrevMediaViewStateOrNull(viewableMedia.mediaLocation)
             as? MpvVideoMediaView.VideoMediaViewState
-            ?: MpvVideoMediaView.VideoMediaViewState()
+            ?: if (initialPosMs >= 0 && position == initialPagerIndex) {
+              MpvVideoMediaView.VideoMediaViewState(prevPosition = initialPosMs / 1000.0)
+            } else {
+              MpvVideoMediaView.VideoMediaViewState()
+            }
 
           MpvVideoMediaView(
             context = context,
@@ -211,7 +216,11 @@ class MediaViewerAdapter(
         } else {
           val initialMediaViewState = viewModel.getPrevMediaViewStateOrNull(viewableMedia.mediaLocation)
             as? ExoPlayerVideoMediaView.VideoMediaViewState
-            ?: ExoPlayerVideoMediaView.VideoMediaViewState()
+            ?: if (initialPosMs >= 0 && position == initialPagerIndex) {
+              ExoPlayerVideoMediaView.VideoMediaViewState(prevPosition = initialPosMs, prevWindowIndex = 0)
+            } else {
+              ExoPlayerVideoMediaView.VideoMediaViewState()
+            }
 
           ExoPlayerVideoMediaView(
             context = context,

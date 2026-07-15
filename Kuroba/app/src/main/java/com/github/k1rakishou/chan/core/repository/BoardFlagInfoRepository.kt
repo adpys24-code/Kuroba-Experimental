@@ -18,6 +18,17 @@ class BoardFlagInfoRepository(
   private val defaultFlagInfoMap = ConcurrentHashMap<BoardDescriptor, LoadBoardFlagsUseCase.FlagInfo>(64)
   private val alreadyCheckedBoards = ConcurrentHashMap<BoardDescriptor, Unit>(64)
 
+  fun prePopulateBoardFlags(boardDescriptor: BoardDescriptor, flags: List<LoadBoardFlagsUseCase.FlagInfo>) {
+    if (flags.isEmpty()) return
+    cachedFlagInfoMap[boardDescriptor] = flags
+    alreadyCheckedBoards[boardDescriptor] = Unit
+    if (!defaultFlagInfoMap.containsKey(boardDescriptor)) {
+      val defaultFlag = flags.firstOrNull { it.flagKey == "0" }
+        ?: LoadBoardFlagsUseCase.FlagInfo("0", "No flag")
+      defaultFlagInfoMap[boardDescriptor] = defaultFlag
+    }
+  }
+
   suspend fun getFlagInfoList(boardDescriptor: BoardDescriptor): List<LoadBoardFlagsUseCase.FlagInfo> {
     if (cachedFlagInfoMap[boardDescriptor].isNullOrEmpty() && !alreadyCheckedBoards.contains(boardDescriptor)) {
       boardManager.awaitUntilInitialized()
@@ -89,10 +100,15 @@ class BoardFlagInfoRepository(
   }
 
   fun getLastUsedFlagInfo(boardDescriptor: BoardDescriptor): LoadBoardFlagsUseCase.FlagInfo? {
-    val lastUsedCountryFlagPerBoardSetting = siteManager.bySiteDescriptorAndActive(boardDescriptor.siteDescriptor)
-      ?.siteSettingsOrNull(Chan4SiteSettings::class.java)
-      ?.lastUsedFlagPerBoard
-      ?: return null
+    val noFlag = LoadBoardFlagsUseCase.FlagInfo("0", "No flag")
+
+    val lastUsedCountryFlagPerBoardSetting = try {
+      siteManager.bySiteDescriptorAndActive(boardDescriptor.siteDescriptor)
+        ?.siteSettingsOrNull(Chan4SiteSettings::class.java)
+        ?.lastUsedFlagPerBoard
+    } catch (_: Exception) {
+      null
+    } ?: return noFlag
 
     val lastUsedCountryFlagPerBoard = lastUsedCountryFlagPerBoardSetting.readBlocking()
 
@@ -105,7 +121,7 @@ class BoardFlagInfoRepository(
       lastUsedFlagInfo = getDefaultFlagInfo(boardDescriptor)
     }
 
-    return lastUsedFlagInfo
+    return lastUsedFlagInfo ?: noFlag
   }
 
   private fun extractFlagCodeOrDefault(lastUsedCountryFlagPerBoardString: String, currentBoardCode: String): String {

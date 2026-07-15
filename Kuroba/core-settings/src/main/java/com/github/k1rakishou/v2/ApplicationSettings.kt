@@ -71,6 +71,15 @@ class ApplicationSettings(
   val isCurrentThemeDark by lazy {
     createBooleanSetting(KurobaSettingKey.Application.IsCurrentThemeDark, true)
   }
+  val bottomNavigationEnabled by lazy {
+    createBooleanSetting(KurobaSettingKey.Application.BottomNavigationEnabled, false)
+  }
+  val neverHideToolbar by lazy {
+    createBooleanSetting(KurobaSettingKey.Application.NeverHideToolbar, false)
+  }
+  val useLegacyBoardDropdown by lazy {
+    createBooleanSetting(KurobaSettingKey.Application.UseLegacyBoardDropdown, false)
+  }
   val layoutMode by lazy {
     createEnumSetting<LayoutMode>(LayoutMode::class.java, KurobaSettingKey.Application.LayoutMode, LayoutMode.Auto)
   }
@@ -351,6 +360,36 @@ class ApplicationSettings(
   val highResCells by lazy {
     createBooleanSetting(KurobaSettingKey.Application.HighResCells, false)
   }
+  val highResGifCells by lazy {
+    createBooleanSetting(KurobaSettingKey.Application.HighResGifCells, false)
+  }
+  val highResMp4Cells by lazy {
+    createBooleanSetting(KurobaSettingKey.Application.HighResMp4Cells, false)
+  }
+  val highResWebmCells by lazy {
+    createBooleanSetting(KurobaSettingKey.Application.HighResWebmCells, false)
+  }
+  val highResVideoCellsAutoplay by lazy {
+    createBooleanSetting(KurobaSettingKey.Application.HighResVideoCellsAutoplay, true)
+  }
+  val useLargeSettingsUi by lazy {
+    createBooleanSetting(KurobaSettingKey.Application.UseLargeSettingsUi, false)
+  }
+  val galleryPinchToZoom by lazy {
+    createBooleanSetting(KurobaSettingKey.Application.GalleryPinchToZoom, true)
+  }
+  val albumVideoZoom by lazy {
+    createBooleanSetting(KurobaSettingKey.Application.AlbumVideoZoom, false)
+  }
+  val albumVideoSeamlessContinue by lazy {
+    createBooleanSetting(KurobaSettingKey.Application.AlbumVideoSeamlessContinue, true)
+  }
+  val galleryMaxAutoplays by lazy {
+    createRangeSetting(KurobaSettingKey.Application.GalleryMaxAutoplays, default = 4, min = 1, max = 24)
+  }
+  val showSpoilerButton by lazy {
+    createBooleanSetting(KurobaSettingKey.Application.ShowSpoilerButton, true)
+  }
   val useMpvVideoPlayer by lazy {
     createBooleanSetting(KurobaSettingKey.Application.UseMpvVideoPlayer, false)
   }
@@ -577,7 +616,9 @@ class ApplicationSettings(
   }
 
   fun canCollapseToolbar(): Boolean {
-    return !isSplitLayoutModeBlocking()
+    if (isSplitLayoutModeBlocking()) return false
+    if (neverHideToolbar.readBlocking()) return false
+    return true
   }
 
   fun supportedFontSizes(): IntRange {

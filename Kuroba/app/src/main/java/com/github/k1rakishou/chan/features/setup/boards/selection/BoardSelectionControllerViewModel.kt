@@ -16,6 +16,7 @@ import com.github.k1rakishou.chan.core.manager.BoardManager
 import com.github.k1rakishou.chan.core.manager.CompositeCatalogManager
 import com.github.k1rakishou.chan.core.manager.CurrentOpenedDescriptorStateManager
 import com.github.k1rakishou.chan.core.manager.SiteManager
+import com.github.k1rakishou.chan.core.site.Site
 import com.github.k1rakishou.chan.core.site.SiteConfiguration
 import com.github.k1rakishou.chan.utils.AppModuleAndroidUtils
 import com.github.k1rakishou.chan.utils.InputWithQuerySorter
@@ -26,12 +27,16 @@ import com.github.k1rakishou.model.data.catalog.CompositeCatalog
 import com.github.k1rakishou.model.data.descriptor.BoardDescriptor
 import com.github.k1rakishou.model.data.descriptor.ChanDescriptor
 import com.github.k1rakishou.model.data.descriptor.SiteDescriptor
+import com.github.k1rakishou.model.data.site.SiteBoards
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 
 class BoardSelectionControllerViewModel(
@@ -65,6 +70,29 @@ class BoardSelectionControllerViewModel(
   override suspend fun onViewModelReady() {
     siteManager.awaitUntilInitialized()
     boardManager.awaitUntilInitialized()
+
+    // Fetch the full board list for all active non-archive sites the first time the
+    // board picker is opened per app session, so search can find any board (not just
+    // ones the user has already added).
+    if (boardListFetched.compareAndSet(false, true)) {
+      viewModelScope.launch(Dispatchers.IO) {
+        val sitesToFetch = mutableListOf<Site>()
+        siteManager.viewActiveSitesOrderedWhile { chanSiteData, site ->
+          if (!archivesManager.isSiteArchive(chanSiteData.siteDescriptor)
+            && !site.hasSiteFeature(SiteConfiguration.SiteFeature.CatalogComposition)) {
+            sitesToFetch += site
+          }
+          return@viewActiveSitesOrderedWhile true
+        }
+        for (site in sitesToFetch) {
+          try {
+            site.actions.loadBoardInfo()
+              .filterIsInstance<SiteBoards.Result>()
+              .first()
+          } catch (_: Exception) {}
+        }
+      }
+    }
 
     viewModelScope.launch {
       showActiveSitesWithBoardsSorted()
@@ -132,6 +160,14 @@ class BoardSelectionControllerViewModel(
         elements.add(SelectableElement.Boards(siteHeader.siteDescriptor, boards))
       }
 
+      val boardCode = query.filter { it.isLetterOrDigit() }
+      if (boardCode.isNotBlank()) {
+        val directNavEntries = siteHeaders
+          .filter { !archivesManager.isSiteArchive(it.siteDescriptor) }
+          .map { SelectableElement.DirectNavigation(it.siteDescriptor, boardCode) }
+        elements.addAll(0, directNavEntries)
+      }
+
       Snapshot.withMutableSnapshot {
         _selectableElements.clear()
         _selectableElements.addAll(elements)
@@ -189,17 +225,7 @@ class BoardSelectionControllerViewModel(
       }
     )
 
-    if (query.isEmpty() || activeSiteCount <= 1) {
-      return sortedCatalogCellData
-    }
-
-    val maxBoardsToShow = if (AppModuleAndroidUtils.isTablet) {
-      MAX_CATALOGS_TO_SHOW_IN_SEARCH_MODE_TABLET
-    } else {
-      MAX_CATALOGS_TO_SHOW_IN_SEARCH_MODE_PHONE
-    }
-
-    return sortedCatalogCellData.take(maxBoardsToShow)
+    return sortedCatalogCellData
   }
 
   private suspend fun collectBoardsFromBoardManager(
@@ -284,21 +310,7 @@ class BoardSelectionControllerViewModel(
       }
     )
 
-    if (query.isEmpty() || activeSiteCount <= 1) {
-      return sortedBoards
-    }
-
-    val maxBoardsToShow = if (AppModuleAndroidUtils.isTablet) {
-      MAX_CATALOGS_TO_SHOW_IN_SEARCH_MODE_TABLET
-    } else {
-      MAX_CATALOGS_TO_SHOW_IN_SEARCH_MODE_PHONE
-    }
-
-    if (canFilterOutLastElement || sortedBoards.size <= maxBoardsToShow) {
-      return sortedBoards.take(maxBoardsToShow)
-    }
-
-    return sortedBoards.take(maxBoardsToShow) + sortedBoards.last()
+    return sortedBoards
   }
 
   fun saveLastScrollPosition(firstVisibleItemIndex: Int, firstVisibleItemScrollOffset: Int) {
@@ -322,6 +334,11 @@ class BoardSelectionControllerViewModel(
     data class Boards(
       val siteDescriptor: SiteDescriptor,
       val selectableBoards: List<SelectableBoard>
+    ) : SelectableElement
+
+    data class DirectNavigation(
+      val siteDescriptor: SiteDescriptor,
+      val boardCode: String
     ) : SelectableElement
   }
 
@@ -364,5 +381,8 @@ class BoardSelectionControllerViewModel(
     const val MAX_CATALOGS_TO_SHOW_IN_SEARCH_MODE_TABLET = 10
 
     private var _lastScrollPosition = LastScrollPosition()
+
+    // Fetch the full board list only once per process lifetime (not per picker open).
+    private val boardListFetched = AtomicBoolean(false)
   }
 }

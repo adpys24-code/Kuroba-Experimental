@@ -369,6 +369,25 @@ object MediaUtils {
     }
   }
 
+  /**
+   * Extracts a single frame from a local video file for use as a thumbnail.
+   * Uses OPTION_CLOSEST at 100ms because OPTION_CLOSEST_SYNC at 0 often returns null for WebM.
+   */
+  fun extractVideoFrameOrNull(videoFile: File): Bitmap? {
+    return try {
+      val retriever = MediaMetadataRetriever()
+      try {
+        retriever.setDataSource(videoFile.absolutePath)
+        retriever.getFrameAtTime(100_000L, MediaMetadataRetriever.OPTION_CLOSEST)
+          ?: retriever.getFrameAtTime(-1, MediaMetadataRetriever.OPTION_NEXT_SYNC)
+      } finally {
+        retriever.release()
+      }
+    } catch (_: Exception) {
+      null
+    }
+  }
+
   suspend fun decodeVideoFilePreviewImageInterruptible(
     context: Context,
     inputFile: InputFile,

@@ -1,6 +1,5 @@
 package com.github.k1rakishou.chan.ui.compose.badge
 
-import android.content.res.Configuration
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -18,7 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import com.github.k1rakishou.chan.ui.compose.components.KurobaComposeText
 import com.github.k1rakishou.chan.ui.compose.ktu
@@ -39,7 +37,6 @@ sealed class MenuItemBadge {
 @Composable
 fun BoxScope.BottomPanelBadge(menuItemBadge: MenuItemBadge) {
   val chanTheme = LocalChanTheme.current
-  val configuration = LocalConfiguration.current
   val kurobaSettings = appDependencies().kurobaSettings
 
   when (menuItemBadge) {
@@ -78,35 +75,29 @@ fun BoxScope.BottomPanelBadge(menuItemBadge: MenuItemBadge) {
 
       val counterText = remember(key1 = counter) { PinHelper.getShortUnreadCount(counter) }
 
-      val fontSize = when (configuration.orientation) {
-        Configuration.ORIENTATION_PORTRAIT -> 10.ktu.fixedSize()
-        Configuration.ORIENTATION_LANDSCAPE -> 11.ktu.fixedSize()
-        else -> 10.ktu.fixedSize()
-      }
-
-      val offsetY = when (configuration.orientation) {
-        Configuration.ORIENTATION_PORTRAIT ->  (-4).dp
-        Configuration.ORIENTATION_LANDSCAPE -> (-8).dp
-        else ->  (-4).dp
+      val xOffset = when (counterText.length) {
+        1 -> 3.dp
+        2 -> 3.dp
+        3 -> 3.dp
+        else -> 5.dp
       }
 
       KurobaComposeText(
         modifier = Modifier
-          .align(Alignment.TopCenter)
-          .offset(x = 0.dp, y = offsetY)
+          .align(Alignment.TopEnd)
+          .offset(x = xOffset, y = 2.dp)
           .drawWithContent {
             drawRoundRect(
               color = backgroundColor,
-              alpha = 0.85f,
-              cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
+              alpha = 0.92f,
+              cornerRadius = CornerRadius(8.dp.toPx(), 8.dp.toPx())
             )
-
             drawContent()
           }
-          .padding(horizontal = 4.dp),
+          .padding(horizontal = 3.dp, vertical = 1.dp),
         text = counterText,
         color = textColor,
-        fontSize = fontSize
+        fontSize = 8.ktu.fixedSize()
       )
     }
   }

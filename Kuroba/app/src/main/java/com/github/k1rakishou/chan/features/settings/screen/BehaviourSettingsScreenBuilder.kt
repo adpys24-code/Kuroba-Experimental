@@ -115,6 +115,15 @@ class BehaviourSettingsScreenBuilder(
           dialogInputType = DialogFactory.DialogInputType.String
         )
       )
+
+      addSetting(
+        SettingUiElement.Bool(
+          title = { appResources.string(R.string.setting_show_spoiler_button) },
+          description = { appResources.string(R.string.setting_show_spoiler_button_description) },
+          setting = kurobaSettings.application.showSpoilerButton,
+          requiresAppRestart = false
+        )
+      )
     }
   }
 

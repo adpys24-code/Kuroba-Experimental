@@ -32,6 +32,7 @@ internal fun ReplyInputLeftPart(
   onRemoveAttachedMediaClicked: (ReplyFileAttachable) -> Unit,
   onAttachableSelectionChanged: (ReplyFileAttachable, Boolean) -> Unit,
   onAttachableStatusIconButtonClicked: (ReplyFileAttachable) -> Unit,
+  onSpoilerToggleClicked: (ReplyFileAttachable) -> Unit,
   onFlagSelectorClicked: (ChanDescriptor) -> Unit
 ) {
   val focusManager = LocalFocusManager.current
@@ -84,14 +85,6 @@ internal fun ReplyInputLeftPart(
 
       Spacer(modifier = Modifier.height(4.dp))
 
-      FlagSelector(
-        replyLayoutEnabled = replyLayoutEnabled,
-        replyLayoutState = replyLayoutState,
-        replyLayoutViewModel = replyLayoutViewModel,
-        onFlagSelectorClicked = onFlagSelectorClicked
-      )
-
-      Spacer(modifier = Modifier.height(4.dp))
     }
 
     ReplyTextField(
@@ -104,7 +97,8 @@ internal fun ReplyInputLeftPart(
 
     ReplyFormattingButtons(
       replyLayoutEnabled = replyLayoutEnabled,
-      replyLayoutState = replyLayoutState
+      replyLayoutState = replyLayoutState,
+      onFlagSelectorClicked = onFlagSelectorClicked
     )
 
     Spacer(modifier = Modifier.height(4.dp))
@@ -117,7 +111,8 @@ internal fun ReplyInputLeftPart(
       onAttachedMediaLongClicked = onAttachedMediaLongClicked,
       onRemoveAttachedMediaClicked = onRemoveAttachedMediaClicked,
       onAttachableSelectionChanged = onAttachableSelectionChanged,
-      onAttachableStatusIconButtonClicked = onAttachableStatusIconButtonClicked
+      onAttachableStatusIconButtonClicked = onAttachableStatusIconButtonClicked,
+      onSpoilerToggleClicked = onSpoilerToggleClicked
     )
   }
 }

@@ -879,7 +879,7 @@ class ThreadListLayout @JvmOverloads constructor(
     postHighlightManager.highlightPosts(postAdapter.threadCellData, postDescriptors, blink)
   }
 
-  fun presentController(controller: Controller) {
+  override fun presentController(controller: Controller) {
     BackgroundUtils.ensureMainThread()
     threadListLayoutCallback?.presentController(controller)
   }

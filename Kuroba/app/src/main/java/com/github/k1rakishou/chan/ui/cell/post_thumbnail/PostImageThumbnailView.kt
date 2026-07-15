@@ -35,6 +35,7 @@ import com.github.k1rakishou.chan.utils.AppModuleAndroidUtils
 import com.github.k1rakishou.chan.utils.AppModuleAndroidUtils.dp
 import com.github.k1rakishou.chan.utils.AppModuleAndroidUtils.getDrawable
 import com.github.k1rakishou.chan.utils.AppModuleAndroidUtils.getString
+import com.github.k1rakishou.chan.utils.MediaUtils
 import com.github.k1rakishou.chan.utils.setOnThrottlingClickListener
 import com.github.k1rakishou.chan.utils.setOnThrottlingLongClickListener
 import com.github.k1rakishou.common.updatePaddings
@@ -413,6 +414,40 @@ class PostImageThumbnailView @JvmOverloads constructor(
       return
     }
 
+    val isVideoHighRes = postImage.type == ChanPostImageType.MOVIE
+      && cacheFileType == CacheFileType.PostMediaFull
+
+    if (isVideoHighRes) {
+      val videoUrl = postImage.imageUrl?.toString()
+      val thumbnailUrl = postImage.getThumbnailUrl(kurobaSettings, false)?.toString()
+      if (videoUrl != null && thumbnailUrl != null) {
+        scope.launch(Dispatchers.IO) {
+          val cacheFile = cacheHandler.getCacheFileOrNull(CacheFileType.PostMediaFull, videoUrl)
+          if (cacheFile == null || !cacheFile.exists() || cacheFile.length() == 0L) {
+            return@launch
+          }
+          val bitmap = MediaUtils.extractVideoFrameOrNull(cacheFile)
+          ensureActive()
+          withContext(Dispatchers.Main.immediate) {
+            if (bitmap != null) {
+              thumbnail.setImageBitmap(bitmap)
+              thumbnail.invalidate()
+            } else {
+              // Fallback: use the actual thumbnail URL with thumbnail cache
+              thumbnail.bindImageUrl(
+                url = thumbnailUrl,
+                cacheFileType = CacheFileType.PostMediaThumbnail,
+                postDescriptor = postImage.ownerPostDescriptor,
+                imageSize = ImageLoaderDeprecated.ImageSize.MeasurableImageSize.create(this@PostImageThumbnailView),
+                thumbnailViewOptions = thumbnailViewOptions
+              )
+            }
+          }
+        }
+        return
+      }
+    }
+
     thumbnail.bindImageUrl(
       url = url,
       cacheFileType = cacheFileType,
@@ -531,7 +566,24 @@ class PostImageThumbnailView @JvmOverloads constructor(
       && postImage.canBeUsedAsHighResolutionThumbnail(kurobaSettings)
       && canAutoLoad(kurobaSettings, cacheHandler, postImage)
 
-    if (highRes) {
+    val gifHighRes = hasImageUrl
+      && canUseHighResCells
+      && postImage.type == ChanPostImageType.GIF
+      && prefetchingDisabledOrAlreadyPrefetched()
+      && kurobaSettings.application.highResGifCells.readBlocking()
+      && postImage.canBeUsedAsHighResolutionThumbnail(kurobaSettings)
+      && canAutoLoad(kurobaSettings, cacheHandler, postImage)
+
+    val isMp4 = postImage.extension?.equals("mp4", ignoreCase = true) == true
+      || postImage.extension?.equals("m4v", ignoreCase = true) == true
+    val videoHighRes = hasImageUrl
+      && canUseHighResCells
+      && postImage.type == ChanPostImageType.MOVIE
+      && ((isMp4 && kurobaSettings.application.highResMp4Cells.readBlocking())
+          || (!isMp4 && kurobaSettings.application.highResWebmCells.readBlocking()))
+      && cacheHandler.cacheFileExists(CacheFileType.PostMediaFull, postImage.imageUrl!!.toString())
+
+    if (highRes || gifHighRes || videoHighRes) {
       url = postImage.imageUrl?.toString()
       cacheFileType = CacheFileType.PostMediaFull
     }

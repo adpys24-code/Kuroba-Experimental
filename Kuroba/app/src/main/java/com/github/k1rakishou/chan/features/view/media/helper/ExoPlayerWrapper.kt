@@ -47,8 +47,13 @@ class ExoPlayerWrapper(
   private val onAudioDetected: () -> Unit
 ) {
   private val scope = KurobaCoroutineScope()
-  private val reusableExoPlayer by lazy { getOrCreateExoPlayer()  }
-  val actualExoPlayer by lazy { reusableExoPlayer.exoPlayer }
+  private val reusableExoPlayer by lazy { getOrCreateExoPlayer() }
+
+  // Non-null when the album's playing ExoPlayer was handed off to avoid re-buffering.
+  private var _handoffPlayer: SimpleExoPlayer? = null
+
+  val actualExoPlayer: SimpleExoPlayer
+    get() = _handoffPlayer ?: reusableExoPlayer.exoPlayer
 
   private var timelineUpdateJob: Job? = null
 
@@ -112,7 +117,17 @@ class ExoPlayerWrapper(
         }
       })
 
+      // Start playing muted so ExoPlayer's decoder is warm when the viewer becomes visible.
+      // We pause immediately after STATE_READY so the position stays at prevPosition.
+      // start() will resume playback (and restore volume) when the viewer opens.
+      actualExoPlayer.volume = 0f
+      actualExoPlayer.playWhenReady = true
+
       _hasContent = withTimeout(MAX_BG_AUDIO_DOWNLOAD_WAIT_TIME_MS) { awaitForContentOrError() }
+
+      if (_hasContent) {
+        actualExoPlayer.pause()
+      }
     }
   }
 
@@ -184,6 +199,29 @@ class ExoPlayerWrapper(
       .createMediaSource(MediaItem.fromUri(Uri.parse(mediaLocation.url.toString())))
   }
 
+  fun adoptHandoff(exoPlayer: SimpleExoPlayer, mediaLocation: MediaLocation) {
+    _handoffPlayer = exoPlayer
+    _hasContent = true
+
+    firstFrameRendered?.cancel()
+    val deferred = CompletableDeferred<MediaLocation>()
+    firstFrameRendered = deferred
+
+    exoPlayer.addListener(object : Player.Listener {
+      override fun onRenderedFirstFrame() {
+        deferred.complete(mediaLocation)
+        exoPlayer.removeListener(this)
+      }
+    })
+
+    exoPlayer.addAnalyticsListener(object : AnalyticsListener {
+      override fun onAudioEnabled(eventTime: AnalyticsListener.EventTime, counters: DecoderCounters) {
+        onAudioDetected()
+        exoPlayer.removeAnalyticsListener(this)
+      }
+    })
+  }
+
   suspend fun startAndAwaitFirstFrame(mediaLocation: MediaLocation) {
     start()
 
@@ -239,8 +277,16 @@ class ExoPlayerWrapper(
   fun release() {
     _hasContent = false
 
-    synchronized(reusableExoPlayer) {
-      reusableExoPlayer.giveBack()
+    val handoff = _handoffPlayer
+    if (handoff != null) {
+      _handoffPlayer = null
+      handoff.pause()
+      // Don't release — the album composable still holds this player reference.
+      // discardHandoff()/releaseAll() will clean it up when the album closes.
+    } else {
+      synchronized(reusableExoPlayer) {
+        reusableExoPlayer.giveBack()
+      }
     }
 
     timelineUpdateJob?.cancel()
@@ -367,7 +413,43 @@ class ExoPlayerWrapper(
 
     private val reusableExoPlayerCache = mutableListOf<ReusableExoPlayer>()
 
+    // Seamless handoff: album stores its playing ExoPlayer here on tap; viewer claims it.
+    @Volatile private var handoffPlayer: SimpleExoPlayer? = null
+    @Volatile private var handoffUrl: String? = null
+
+    fun storeHandoff(player: SimpleExoPlayer, url: String) {
+      val prev = handoffPlayer
+      if (prev != null && prev !== player) {
+        prev.pause()
+      }
+      handoffPlayer = player
+      handoffUrl = url
+    }
+
+    fun hasPendingHandoff(url: String): Boolean {
+      return handoffPlayer != null && handoffUrl == url
+    }
+
+    fun claimHandoff(url: String): SimpleExoPlayer? {
+      val p = handoffPlayer ?: return null
+      return if (handoffUrl == url) {
+        handoffPlayer = null
+        handoffUrl = null
+        p
+      } else {
+        null
+      }
+    }
+
+    private fun discardHandoff() {
+      handoffPlayer?.pause()
+      handoffPlayer = null
+      handoffUrl = null
+    }
+
     fun releaseAll() {
+      discardHandoff()
+
       reusableExoPlayerCache.forEachIndexed { index, reusableExoPlayer ->
         Logger.d(TAG, "releaseAll() releasing ${index + 1} / ${reusableExoPlayerCache.size} player")
         reusableExoPlayer.releaseCompletely()

@@ -233,8 +233,10 @@ class ExoPlayerVideoMediaView(
 
     val canPreloadRemote = viewableMedia.mediaLocation is MediaLocation.Remote && canPreload(forced = false)
     val mediaIsLocal = viewableMedia.mediaLocation is MediaLocation.Local
+    val handoffUrl = (viewableMedia.mediaLocation as? MediaLocation.Remote)?.urlRaw
+    val hasPendingHandoff = handoffUrl != null && ExoPlayerWrapper.hasPendingHandoff(handoffUrl)
 
-    if (canPreloadRemote || mediaIsLocal) {
+    if (canPreloadRemote || mediaIsLocal || hasPendingHandoff) {
       preloadingJob = startFullVideoPreloading(viewableMedia.mediaLocation)
     }
   }
@@ -412,6 +414,15 @@ class ExoPlayerVideoMediaView(
     }
   }
 
+  private fun resolveMediaLocation(mediaLocation: MediaLocation): MediaLocation {
+    if (mediaLocation !is MediaLocation.Remote) return mediaLocation
+    val cachedFile = cacheHandler.get().getCacheFileOrNull(CacheFileType.PostMediaFull, mediaLocation.urlRaw)
+    if (cachedFile != null && cachedFile.exists() && cachedFile.length() > 0) {
+      return MediaLocation.Local(path = cachedFile.absolutePath, isUri = false)
+    }
+    return mediaLocation
+  }
+
   private fun startFullVideoPreloading(mediaLocation: MediaLocation): Job {
     return scope.launch {
       this@ExoPlayerVideoMediaView.videoSoundDetected = mediaViewState.videoSoundDetected == true
@@ -430,17 +441,26 @@ class ExoPlayerVideoMediaView(
         actualVideoPlayerView.setShowBuffering(ExoPlayerCustomPlayerView.SHOW_BUFFERING_NEVER)
         actualVideoPlayerView.useArtwork = false
         actualVideoPlayerView.setShutterBackgroundColor(Color.TRANSPARENT)
-        actualVideoPlayerView.player = mainVideoPlayer.actualExoPlayer
+
+        val url = (mediaLocation as? MediaLocation.Remote)?.urlRaw
+        val handoff = if (url != null) ExoPlayerWrapper.claimHandoff(url) else null
+
+        if (handoff != null) {
+          // Album's ExoPlayer is already playing at position T — adopt it directly.
+          // No stop/prepare/seek needed; video continues without any buffering pause.
+          mainVideoPlayer.adoptHandoff(handoff, mediaLocation)
+          actualVideoPlayerView.player = mainVideoPlayer.actualExoPlayer
+        } else {
+          actualVideoPlayerView.player = mainVideoPlayer.actualExoPlayer
+          mainVideoPlayer.preload(
+            viewableMedia = viewableMedia,
+            mediaLocation = resolveMediaLocation(mediaLocation),
+            prevPosition = mediaViewState.prevPosition,
+            prevWindowIndex = mediaViewState.prevWindowIndex
+          )
+        }
 
         updateExoBufferingViewColors()
-
-        mainVideoPlayer.preload(
-          viewableMedia = viewableMedia,
-          mediaLocation = mediaLocation,
-          prevPosition = mediaViewState.prevPosition,
-          prevWindowIndex = mediaViewState.prevWindowIndex
-        )
-
         fullVideoDeferred.complete(Unit)
       } catch (error: Throwable) {
         fullVideoDeferred.completeExceptionally(error)

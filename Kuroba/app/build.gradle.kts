@@ -1,7 +1,32 @@
 import com.android.build.gradle.internal.api.BaseVariantOutputImpl
 import com.github.k1rakishou.buildsrc.FreeCompilerArgs
 import java.io.FileInputStream
+import java.io.ByteArrayOutputStream
 import java.util.Properties
+import org.gradle.api.provider.Provider
+import org.gradle.api.provider.ValueSource
+import org.gradle.api.provider.ValueSourceParameters
+import org.gradle.process.ExecOperations
+import javax.inject.Inject
+
+abstract class GitHashValueSource : ValueSource<String, ValueSourceParameters.None> {
+    @get:Inject
+    abstract val execOperations: ExecOperations
+
+    override fun obtain(): String {
+        return try {
+            val output = ByteArrayOutputStream()
+            val result = execOperations.exec {
+                commandLine("git", "rev-parse", "HEAD")
+                standardOutput = output
+                isIgnoreExitValue = true
+            }
+            if (result.exitValue == 0) output.toString().trim().ifEmpty { "no-git" } else "no-git"
+        } catch (e: Exception) {
+            "no-git"
+        }
+    }
+}
 
 plugins {
     id("com.android.application")
@@ -29,9 +54,7 @@ enum class KurobaBuildType {
     }
 }
 
-val gitHashProvider = providers.exec {
-    commandLine("git", "rev-parse", "HEAD")
-}.standardOutput.asText.map { it.trim() }
+val gitHashProvider: Provider<String> = providers.of(GitHashValueSource::class.java) {}
 
 android {
     namespace = "com.github.k1rakishou.chan"

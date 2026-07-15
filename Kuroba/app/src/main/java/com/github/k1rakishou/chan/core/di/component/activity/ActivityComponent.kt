@@ -57,6 +57,7 @@ import com.github.k1rakishou.chan.features.settings.delegate.ExportBackupOptions
 import com.github.k1rakishou.chan.features.setup.boards.composing.ComposeBoardsController
 import com.github.k1rakishou.chan.features.setup.boards.composing.ComposeBoardsSelectorController
 import com.github.k1rakishou.chan.features.setup.boards.composing.CompositeCatalogsSetupController
+import com.github.k1rakishou.chan.features.setup.boards.selection.LegacyBoardDropdownController
 import com.github.k1rakishou.chan.features.setup.epoxy.site.EpoxySiteView
 import com.github.k1rakishou.chan.features.setup.site.setup.SitesSetupController
 import com.github.k1rakishou.chan.features.soundmedia.create.CreateSoundMediaController
@@ -96,6 +97,7 @@ import com.github.k1rakishou.chan.ui.compose.ThreadSearchNavigationButtonsView
 import com.github.k1rakishou.chan.ui.compose.lazylist.ScrollbarView
 import com.github.k1rakishou.chan.ui.controller.BrowseController
 import com.github.k1rakishou.chan.ui.controller.CaptchaContainerController
+import com.github.k1rakishou.chan.ui.controller.FlagPickerController
 import com.github.k1rakishou.chan.ui.controller.FloatingListMenuController
 import com.github.k1rakishou.chan.ui.controller.LicensesController
 import com.github.k1rakishou.chan.ui.controller.LogsController
@@ -219,6 +221,7 @@ interface ActivityComponent : ActivityDependencies {
   fun inject(appSettingsController: AppSettingsController)
   fun inject(reportIssueController: ReportIssueController)
   fun inject(floatingListMenuController: FloatingListMenuController)
+  fun inject(flagPickerController: FlagPickerController)
   fun inject(postLinksController: PostLinksController)
   fun inject(selectSiteForSearchController: SelectSiteForSearchController)
   fun inject(selectBoardForSearchController: SelectBoardForSearchController)
@@ -237,6 +240,7 @@ interface ActivityComponent : ActivityDependencies {
   fun inject(exportBackupOptionsController: ExportBackupOptionsController)
   fun inject(composeBoardsController: ComposeBoardsController)
   fun inject(composeBoardsSelectorController: ComposeBoardsSelectorController)
+  fun inject(legacyBoardDropdownController: LegacyBoardDropdownController)
   fun inject(compositeCatalogsSetupController: CompositeCatalogsSetupController)
   fun inject(createOrUpdateFilterController: CreateOrUpdateFilterController)
   fun inject(filterTypeSelectionController: FilterTypeSelectionController)

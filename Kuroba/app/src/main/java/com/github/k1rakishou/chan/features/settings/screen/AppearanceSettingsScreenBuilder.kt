@@ -100,6 +100,23 @@ class AppearanceSettingsScreenBuilder(
       )
 
       addSetting(
+        SettingUiElement.Bool(
+          title = { appResources.string(R.string.setting_use_bottom_navigation) },
+          description = { appResources.string(R.string.setting_use_bottom_navigation_description) },
+          setting = kurobaSettings.application.bottomNavigationEnabled,
+          requiresAppRestart = true
+        )
+      )
+
+      addSetting(
+        SettingUiElement.Bool(
+          title = { appResources.string(R.string.setting_never_hide_toolbar) },
+          description = { appResources.string(R.string.setting_never_hide_toolbar_description) },
+          setting = kurobaSettings.application.neverHideToolbar
+        )
+      )
+
+      addSetting(
         SettingUiElement.Link(
           composeKey = "ReorderableBottomNavViewButtonsSetting",
           title = { appResources.string(R.string.setting_reorder_bottom_nav_view_buttons) },
@@ -122,6 +139,15 @@ class AppearanceSettingsScreenBuilder(
           }
         )
       )
+
+      addSetting(
+        SettingUiElement.Bool(
+          title = { appResources.string(R.string.setting_use_classic_board_dropdown) },
+          description = { appResources.string(R.string.setting_use_classic_board_dropdown_description) },
+          setting = kurobaSettings.application.useLegacyBoardDropdown,
+          requiresAppRestart = true
+        )
+      )
     }
   }
 
@@ -140,6 +166,15 @@ class AppearanceSettingsScreenBuilder(
           itemNameMapper = { fontSize -> fontSize },
           setting = kurobaSettings.application.fontSize,
           requiresPostListRefresh = true
+        )
+      )
+
+      addSetting(
+        SettingUiElement.Bool(
+          title = { appResources.string(R.string.setting_use_large_settings_ui) },
+          description = { appResources.string(R.string.setting_use_large_settings_ui_description) },
+          setting = kurobaSettings.application.useLargeSettingsUi,
+          requiresAppRestart = false
         )
       )
 

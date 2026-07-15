@@ -12,8 +12,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
@@ -130,6 +132,8 @@ class MainController(
   private lateinit var drawerLayout: DrawerLayout
   private lateinit var drawer: TouchBlockingLinearLayoutNoBackground
   private lateinit var snackbarContainerView: SnackbarContainerView
+  private var bottomNavComposeView: ComposeView? = null
+  private val drawerSlideOffset = androidx.compose.runtime.mutableFloatStateOf(0f)
 
   private val _latestDrawerEnableState = MutableStateFlow<DrawerEnableState?>(null)
 
@@ -204,6 +208,17 @@ class MainController(
     snackbarContainerView = view.findViewById(R.id.snackbar_container_view)
     snackbarContainerView.init(SnackbarScope.Global())
 
+    val bottomNavView = view.findViewById<ComposeView>(R.id.bottom_nav_compose_view)
+    if (kurobaSettings.application.bottomNavigationEnabled.readBlocking()) {
+      bottomNavView.visibility = View.VISIBLE
+      bottomNavComposeView = bottomNavView
+      bottomNavView.setContent {
+        ComposeEntrypoint {
+          KurobaComposeBottomPanelContent()
+        }
+      }
+    }
+
     drawerLayout.addDrawerListener(this)
 
     val drawerComposeView = view.findViewById<ComposeView>(R.id.drawer_compose_view)
@@ -236,8 +251,10 @@ class MainController(
               onHistoryEntrySelectionChanged = { currentlySelected, navHistoryEntry ->
                 kurobaDrawerState.selectUnselect(navHistoryEntry, currentlySelected.not())
               },
-              kurobaComposeBottomPanel = {
-                KurobaComposeBottomPanelContent()
+              kurobaComposeBottomPanel = if (kurobaSettings.application.bottomNavigationEnabled.readBlocking()) {
+                null
+              } else {
+                { KurobaComposeBottomPanelContent() }
               }
             )
           }
@@ -314,6 +331,7 @@ class MainController(
   }
 
   override fun onDrawerSlide(drawerView: View, slideOffset: Float) {
+    drawerSlideOffset.floatValue = slideOffset
   }
 
   override fun onDrawerOpened(drawerView: View) {
@@ -412,7 +430,24 @@ class MainController(
         .collect { onSettingsNotificationChanged(panelStateUpdated.value) }
     }
 
+    val canCollapseToolbar = kurobaSettings.application.canCollapseToolbar()
+
     KurobaIconPanel(
+      modifier = Modifier.layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints)
+        // Read MutableFloatState values directly here — no coroutine/channel hop,
+        // so layout reruns on the same frame as the drawer slide or scroll event.
+        val baseScrollProgress = if (canCollapseToolbar) {
+          globalUiStateHolder.scroll.scrollTransitionProgress.floatValue
+        } else {
+          0f
+        }
+        val scrollProgress = baseScrollProgress * (1f - drawerSlideOffset.floatValue)
+        val visibleHeight = (placeable.height * (1f - scrollProgress)).toInt().coerceAtLeast(0)
+        layout(placeable.width, visibleHeight) {
+          placeable.placeRelative(0, 0)
+        }
+      },
       panelState = panelState,
       onMenuItemClicked = { clickedMenuItemId ->
         onNavigationItemSelectedListener(clickedMenuItemId)

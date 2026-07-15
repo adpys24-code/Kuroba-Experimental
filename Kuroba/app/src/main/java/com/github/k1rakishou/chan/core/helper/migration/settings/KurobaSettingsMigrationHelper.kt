@@ -502,6 +502,17 @@ class KurobaSettingsMigrationHelper(
       migrateBooleanSetting(prefs, "high_res_cells", application.highResCells)
       migrateBooleanSetting(prefs, "use_mpv_video_player", application.useMpvVideoPlayer)
       migrateBooleanSetting(prefs, "mpv_use_config_file", application.mpvUseConfigFile)
+
+      // Migrate MPV-specific settings from the legacy mpv_state SharedPreferences
+      try {
+        val mpvPrefs = SharedPreferencesSettingProvider(
+          context.getSharedPreferences("${applicationId}_mpv_state", android.content.Context.MODE_PRIVATE)
+        )
+        migrateBooleanSetting(mpvPrefs, "hardware_decoding", kurobaSettings.mpv.hardwareDecoding)
+        migrateBooleanSetting(mpvPrefs, "video_fastdecode", kurobaSettings.mpv.videoFastCode)
+      } catch (ignored: Exception) {
+        Logger.w(TAG, "Failed to migrate MPV state preferences", ignored)
+      }
       migrateBooleanSetting(prefs, "colorize_text_selection_cursors", application.colorizeTextSelectionCursors)
       migrateBooleanSetting(prefs, "crash_on_safe_throw", application.crashOnSafeThrow)
       migrateBooleanSetting(prefs, "verbose_logs", application.verboseLogs)

@@ -41,6 +41,7 @@ fun ReplyLayoutContainer(
   onRemoveAttachedMediaClicked: (ReplyFileAttachable) -> Unit,
   onAttachableSelectionChanged: (ReplyFileAttachable, Boolean) -> Unit,
   onAttachableStatusIconButtonClicked: (ReplyFileAttachable) -> Unit,
+  onSpoilerToggleClicked: (ReplyFileAttachable) -> Unit,
   onFlagSelectorClicked: (ChanDescriptor) -> Unit,
   onPresolveCaptchaButtonClicked: () -> Unit,
   onReplyLayoutPickFileButtonClicked: () -> Unit,
@@ -96,6 +97,7 @@ fun ReplyLayoutContainer(
         onRemoveAttachedMediaClicked = onRemoveAttachedMediaClicked,
         onAttachableSelectionChanged = onAttachableSelectionChanged,
         onAttachableStatusIconButtonClicked = onAttachableStatusIconButtonClicked,
+        onSpoilerToggleClicked = onSpoilerToggleClicked,
         onFlagSelectorClicked = onFlagSelectorClicked
       )
     }

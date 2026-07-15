@@ -70,6 +70,7 @@ fun ReplyLayout(
           onRemoveAttachedMediaClicked = replyLayoutViewModel::removeAttachedMedia,
           onAttachableSelectionChanged = replyLayoutViewModel::onAttachableSelectionChanged,
           onAttachableStatusIconButtonClicked = replyLayoutViewModel::onAttachableStatusIconButtonClicked,
+          onSpoilerToggleClicked = replyLayoutViewModel::toggleSpoiler,
           onFlagSelectorClicked = replyLayoutViewModel::onFlagSelectorClicked,
           onPresolveCaptchaButtonClicked = onPresolveCaptchaButtonClicked,
           onReplyLayoutPickFileButtonClicked = replyLayoutViewModel::onReplyLayoutPickFileButtonClicked,
