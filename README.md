@@ -1,6 +1,17 @@
 
 # Kuroba Experimental
 
+### Changes in this fork:
+Newest added features on top of v1.3.44
+
+- Album: autoplaying video
+- High-res GIF/MP4/WebM cell thumbnails
+- Pinch to zoom: gallery column count, video/GIF zoom and pan
+- MPV: control bar size settings, gpu-next surface fix, DoNotStrip annotations
+- UI options: bottom navigation bar, never-hide toolbar, classic board dropdown, classic settings sizing
+- 4chan flags parsed from API + new flag picker; spoiler toggle on attachments
+- Cloudflare bypass popup only for sites actually opened
+
 ### [Latest stable release](https://github.com/K1rakishou/Kuroba-Experimental/releases/latest)
 
 ### [Latest beta version](https://github.com/K1rakishou/Kuroba-Experimental-beta/releases/latest)
