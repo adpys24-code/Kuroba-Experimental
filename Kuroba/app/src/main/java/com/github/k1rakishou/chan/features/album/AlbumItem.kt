@@ -69,6 +69,7 @@ import com.github.k1rakishou.model.data.descriptor.ChanDescriptor
 import com.github.k1rakishou.model.data.post.ChanPostImage
 import com.github.k1rakishou.model.data.post.ChanPostImageType
 import com.github.k1rakishou.v2.KurobaSettings
+import com.google.android.exoplayer2.DefaultLoadControl
 import com.google.android.exoplayer2.DefaultRenderersFactory
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.Player
@@ -85,7 +86,14 @@ import java.io.File
 
 private const val TAG = "AlbumItem"
 private const val TransparentBlackColorAlpha = 0.4f
-private const val MIN_HEAP_MB_BEFORE_NEW_PLAYER = 40L
+// A video decoder needs considerably more than a few spare MB to spin up. 40MB was low enough
+// that a player could be created into an almost-full heap and then OOM inside MediaCodec while
+// decoding rather than being refused here.
+private const val MIN_HEAP_MB_BEFORE_NEW_PLAYER = 96L
+
+// The default LoadControl buffers tens of seconds of video per player. In a grid where several
+// players run at once that dominates the heap, so bound it.
+private const val ALBUM_AUTOPLAY_TARGET_BUFFER_BYTES = 4 * 1024 * 1024
 internal val activeVideoPlayerCount = java.util.concurrent.atomic.AtomicInteger(0)
 private const val HighResCellsMaxSpanCountPhone = 3
 private const val HighResCellsMaxSpanCountTablet = 5
@@ -445,17 +453,30 @@ private fun VideoAlbumItemCell(
           DefaultHttpDataSource.Factory()
             .setDefaultRequestProperties(requestHeaders)
         )
+      // bufferForPlaybackMs is 2s rather than a few hundred ms on purpose: album videos stream
+      // through the network cache, and starting playback on a nearly empty buffer while several
+      // players spin up during a scroll starves the decoder and produces torn frames.
+      val loadControl = DefaultLoadControl.Builder()
+        .setBufferDurationsMs(5_000, 15_000, 2_000, 3_000)
+        .setTargetBufferBytes(ALBUM_AUTOPLAY_TARGET_BUFFER_BYTES)
+        .setPrioritizeTimeOverSizeThresholds(false)
+        .build()
+
       @Suppress("DEPRECATION")
       SimpleExoPlayer.Builder(
         context,
         DefaultRenderersFactory(context).setEnableDecoderFallback(true)
-      ).build().also { p ->
+      ).setLoadControl(loadControl).build().also { p ->
         p.repeatMode = Player.REPEAT_MODE_ONE
         p.volume = 0f
         p.playWhenReady = autoplay && isVisible
         p.addListener(object : Player.Listener {
-          override fun onPlaybackStateChanged(state: Int) {
-            if (state == Player.STATE_READY) videoVisible = true
+          // Deliberately NOT STATE_READY: that fires as soon as enough is buffered to start,
+          // which is before anything has actually been drawn into the TextureView. Revealing
+          // the view at that point shows whatever was left in the recycled texture, or a
+          // half-decoded frame - visible as momentary artifacting while scrolling the grid.
+          override fun onRenderedFirstFrame() {
+            videoVisible = true
           }
         })
         p.setMediaSource(ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(MediaItem.fromUri(source)))
