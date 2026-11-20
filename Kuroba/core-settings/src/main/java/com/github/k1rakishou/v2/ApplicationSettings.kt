@@ -86,6 +86,10 @@ class ApplicationSettings(
   val catalogSpanCount by lazy {
     createIntSetting(KurobaSettingKey.Application.CatalogSpanCount, 0)
   }
+  // Separate catalog column count for SPLIT layout mode (0 = auto)
+  val catalogSpanCountSplit by lazy {
+    createIntSetting(KurobaSettingKey.Application.CatalogSpanCountSplit, 0)
+  }
   val albumSpanCount by lazy {
     createIntSetting(KurobaSettingKey.Application.AlbumSpanCount, 0)
   }
@@ -101,7 +105,7 @@ class ApplicationSettings(
       key = KurobaSettingKey.Application.PostCellThumbnailSizePercents,
       default = 75,
       min = 50,
-      max = 125
+      max = 200
     )
   }
   val postFullDate by lazy {
@@ -326,17 +330,17 @@ class ApplicationSettings(
   val diskCacheSizeMegabytes by lazy {
     createRangeSetting(
       key = KurobaSettingKey.Application.DiskCacheSizeMegabytes,
-      default = 256,
+      default = 384,
       min = diskCacheSizeGetMin(),
-      max = 1024
+      max = 2048
     )
   }
   val prefetchDiskCacheSizeMegabytes by lazy {
     createRangeSetting(
       key = KurobaSettingKey.Application.PrefetchDiskCacheSizeMegabytes,
-      default = 512,
+      default = 768,
       min = diskCacheSizePrefetchGetMin(),
-      max = 2048
+      max = 4096
     )
   }
   val diskCacheCleanupRemovePercent by lazy {
@@ -389,6 +393,22 @@ class ApplicationSettings(
   }
   val showSpoilerButton by lazy {
     createBooleanSetting(KurobaSettingKey.Application.ShowSpoilerButton, true)
+  }
+  val draggableScrollbarWidth by lazy {
+    createRangeSetting(KurobaSettingKey.Application.DraggableScrollbarWidth, default = 14, min = 6, max = 32)
+  }
+  val alwaysShowScrollbar by lazy {
+    createBooleanSetting(KurobaSettingKey.Application.AlwaysShowScrollbar, true)
+  }
+  // 0 means the catalog side is fully collapsed (hidden)
+  val splitLayoutCatalogWidthPercent by lazy {
+    createRangeSetting(KurobaSettingKey.Application.SplitLayoutCatalogWidthPercent, default = 35, min = 0, max = 60)
+  }
+  val hardwareKeyboardHotkeys by lazy {
+    createBooleanSetting(KurobaSettingKey.Application.HardwareKeyboardHotkeys, true)
+  }
+  val catalogVideoAutoplay by lazy {
+    createBooleanSetting(KurobaSettingKey.Application.CatalogVideoAutoplay, false)
   }
   val useMpvVideoPlayer by lazy {
     createBooleanSetting(KurobaSettingKey.Application.UseMpvVideoPlayer, false)

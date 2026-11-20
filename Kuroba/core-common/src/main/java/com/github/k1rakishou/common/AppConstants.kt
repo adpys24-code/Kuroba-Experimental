@@ -63,8 +63,8 @@ open class AppConstants(
   val isDebuggerAttached: Boolean
     get() = Debug.isDebuggerConnected()
 
-  // 128MB
-  val exoPlayerDiskCacheMaxSize = 128L * 1024 * 1024
+  // 256MB (raised from 128MB for the album/catalog video autoplay features)
+  val exoPlayerDiskCacheMaxSize = 256L * 1024 * 1024
   val mpvDemuxerCacheMaxSize: Long
 
   val replyDraftsDir: File
