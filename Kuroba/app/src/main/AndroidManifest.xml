@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="com.github.k1rakishou.chan"
     android:installLocation="internalOnly">
+
+    <!-- ffmpeg-kit declares minSdk 24 while the app supports 23. The media conversion
+         feature is guarded at runtime with a Build.VERSION check. -->
+    <uses-sdk tools:overrideLibrary="com.antonkarpenko" />
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
@@ -37,6 +42,7 @@
     <application
         android:name="com.github.k1rakishou.chan.Chan"
         android:allowBackup="true"
+        android:largeHeap="true"
         android:icon="${iconLoc}"
         android:label="${appName}"
         android:requestLegacyExternalStorage="true"
