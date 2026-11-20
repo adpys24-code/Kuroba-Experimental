@@ -59,6 +59,14 @@ class BehaviourSettingsScreenBuilder(
 
       addSetting(
         SettingUiElement.Bool(
+          title = { appResources.string(R.string.setting_hardware_keyboard_hotkeys) },
+          description = { appResources.string(R.string.setting_hardware_keyboard_hotkeys_description) },
+          setting = kurobaSettings.application.hardwareKeyboardHotkeys
+        )
+      )
+
+      addSetting(
+        SettingUiElement.Bool(
           title = { appResources.string(R.string.setting_view_thread_controller_swipeable) },
           description = { appResources.string(R.string.setting_view_thread_controller_swipeable_description) },
           setting = kurobaSettings.application.viewThreadControllerSwipeable,

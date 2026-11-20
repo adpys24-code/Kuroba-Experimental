@@ -34,6 +34,15 @@ class ExperimentalSettingsScreenBuilder(
     ) {
       addSetting(
         SettingUiElement.Bool(
+          title = { appResources.string(R.string.setting_catalog_video_autoplay) },
+          description = { appResources.string(R.string.setting_catalog_video_autoplay_description) },
+          setting = kurobaSettings.application.catalogVideoAutoplay,
+          requiresPostListRefresh = true
+        )
+      )
+
+      addSetting(
+        SettingUiElement.Bool(
           title = { appResources.string(R.string.setting_allow_okhttp_ipv6) },
           description = { appResources.string(R.string.setting_allow_okhttp_http2_ipv6_description) },
           setting = kurobaSettings.application.okHttpAllowIpv6,

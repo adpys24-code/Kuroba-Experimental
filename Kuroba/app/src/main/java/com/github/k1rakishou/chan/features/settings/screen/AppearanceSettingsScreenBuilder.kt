@@ -7,6 +7,7 @@ import com.github.k1rakishou.chan.features.settings.SettingsScreen
 import com.github.k1rakishou.chan.features.settings.setting.SettingUiElement
 import com.github.k1rakishou.chan.features.themes.ThemeSettingsController
 import com.github.k1rakishou.chan.ui.helper.AppResources
+import com.github.k1rakishou.chan.utils.AppModuleAndroidUtils
 import com.github.k1rakishou.chan.utils.TimeUtils
 import com.github.k1rakishou.core_themes.ThemeEngine
 import com.github.k1rakishou.v2.KurobaSettings
@@ -100,6 +101,26 @@ class AppearanceSettingsScreenBuilder(
       )
 
       addSetting(
+        SettingUiElement.Items(
+          title = { appResources.string(R.string.setting_board_grid_span_count_split) },
+          description = { appResources.string(R.string.setting_board_grid_span_count_split_description) },
+          items = ALL_COLUMNS,
+          selectionType = SettingUiElement.SelectionType.Multiple("catalog_column_count_split"),
+          itemNameMapper = { columnsCount ->
+            when (columnsCount) {
+              AUTO_COLUMN -> appResources.string(R.string.setting_span_count_default)
+              in ALL_COLUMNS_EXCLUDING_AUTO -> {
+                appResources.string(R.string.setting_span_count_item, columnsCount)
+              }
+              else -> throw IllegalArgumentException("Bad columns count: $columnsCount")
+            }
+          },
+          setting = kurobaSettings.application.catalogSpanCountSplit,
+          requiresPostListRefresh = true
+        )
+      )
+
+      addSetting(
         SettingUiElement.Bool(
           title = { appResources.string(R.string.setting_use_bottom_navigation) },
           description = { appResources.string(R.string.setting_use_bottom_navigation_description) },
@@ -113,6 +134,25 @@ class AppearanceSettingsScreenBuilder(
           title = { appResources.string(R.string.setting_never_hide_toolbar) },
           description = { appResources.string(R.string.setting_never_hide_toolbar_description) },
           setting = kurobaSettings.application.neverHideToolbar
+        )
+      )
+
+      addSetting(
+        SettingUiElement.Bool(
+          title = { appResources.string(R.string.setting_always_show_scrollbar) },
+          description = { appResources.string(R.string.setting_always_show_scrollbar_description) },
+          setting = kurobaSettings.application.alwaysShowScrollbar,
+          requiresPostListRefresh = true
+        )
+      )
+
+      addSetting(
+        SettingUiElement.Range(
+          title = { appResources.string(R.string.setting_draggable_scrollbar_width) },
+          description = { appResources.string(R.string.setting_draggable_scrollbar_width_description) },
+          setting = kurobaSettings.application.draggableScrollbarWidth,
+          valueFormatter = { value -> "${value}dp" },
+          requiresPostListRefresh = true
         )
       )
 
@@ -444,8 +484,9 @@ class AppearanceSettingsScreenBuilder(
 
   companion object {
     const val AUTO_COLUMN = 0
-    val ALL_COLUMNS = listOf(AUTO_COLUMN, 1, 2, 3, 4, 5)
-    val ALL_COLUMNS_EXCLUDING_AUTO = setOf(1, 2, 3, 4, 5)
+    private val MAX_COLUMNS = if (AppModuleAndroidUtils.isTablet) 10 else 5
+    val ALL_COLUMNS = listOf(AUTO_COLUMN) + (1..MAX_COLUMNS).toList()
+    val ALL_COLUMNS_EXCLUDING_AUTO = (1..MAX_COLUMNS).toSet()
 
     @JvmStatic
     fun clampColumnsCount(columns: Int): Int {
