@@ -206,6 +206,9 @@ class MpvVideoMediaView(
       }
 
       override fun onScrubMove(timeBar: TimeBar, position: Long) {
+        // The position label is otherwise frozen at the playback position for the whole drag,
+        // leaving no indication of where the finger actually is.
+        mpvVideoPosition.text = MpvUtils.prettyTime(position.toInt())
       }
 
       override fun onScrubStop(timeBar: TimeBar, position: Long, canceled: Boolean) {

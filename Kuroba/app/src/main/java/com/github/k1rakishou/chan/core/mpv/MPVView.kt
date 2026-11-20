@@ -89,6 +89,10 @@ class MPVView(
         MPVLib.mpvSetOptionString("interpolation", "no")
         reloadFastVideoDecodeOption(videoFastCode)
         MPVLib.mpvSetOptionString("profile", "fast")
+        // Set after the profile so it cannot be overridden by it. Makes every seek land on the
+        // requested position instead of the nearest keyframe.
+        MPVLib.mpvSetOptionString("hr-seek", "yes")
+        MPVLib.mpvSetOptionString("hr-seek-framedrop", "yes")
         MPVLib.mpvSetOptionString("gpu-context", "android")
         reloadUseGpuNext(gpuNext)
         MPVLib.mpvSetOptionString("hwdec", hwdec)
@@ -247,7 +251,10 @@ class MPVView(
 
     var timePos: Double?
         get() = MPVLib.mpvGetPropertyDouble("time-pos/full")
-        set(progress) = MPVLib.mpvCommand(arrayOf("seek", "$progress", "absolute+keyframes"))
+        // "exact" instead of "keyframes": keyframe seeking snaps to the nearest index keyframe,
+        // which lands nowhere near the requested position on videos with sparse keyframes and
+        // always jumps back to 0 on single-keyframe webms.
+        set(progress) = MPVLib.mpvCommand(arrayOf("seek", "$progress", "absolute+exact"))
 
     val hwdecActive: Boolean
         get() = (MPVLib.mpvGetPropertyString("hwdec-current") ?: "no") != "no"
