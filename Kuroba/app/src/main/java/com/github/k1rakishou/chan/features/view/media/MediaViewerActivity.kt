@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Point
 import android.os.Bundle
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.WindowManager
 import android.webkit.URLUtil
@@ -130,6 +131,35 @@ class MediaViewerActivity :
         .onEach { finish() }
         .collect()
     }
+  }
+
+  override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+    val hotkeysEnabled = ::mediaViewerController.isInitialized
+      && event.action == KeyEvent.ACTION_DOWN
+      && kurobaSettings.application.hardwareKeyboardHotkeys.readBlocking()
+
+    if (hotkeysEnabled) {
+      when (event.keyCode) {
+        KeyEvent.KEYCODE_DPAD_RIGHT,
+        KeyEvent.KEYCODE_PAGE_DOWN -> {
+          if (mediaViewerController.onHardwareKeyboardMediaNavigation(forward = true)) {
+            return true
+          }
+        }
+        KeyEvent.KEYCODE_DPAD_LEFT,
+        KeyEvent.KEYCODE_PAGE_UP -> {
+          if (mediaViewerController.onHardwareKeyboardMediaNavigation(forward = false)) {
+            return true
+          }
+        }
+        KeyEvent.KEYCODE_ESCAPE -> {
+          finish()
+          return true
+        }
+      }
+    }
+
+    return super.dispatchKeyEvent(event)
   }
 
   override fun onResume() {

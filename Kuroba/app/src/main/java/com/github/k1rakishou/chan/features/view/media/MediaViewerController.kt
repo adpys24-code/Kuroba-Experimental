@@ -474,6 +474,18 @@ class MediaViewerController(
     return downloading
   }
 
+  fun onHardwareKeyboardMediaNavigation(forward: Boolean): Boolean {
+    if (!::pager.isInitialized) {
+      return false
+    }
+
+    return if (forward) {
+      pager.swipeForward()
+    } else {
+      pager.swipeBackward()
+    }
+  }
+
   private fun tryEnqueueAutoSwipe() {
     autoSwipeJob?.cancel()
     autoSwipeJob = null
