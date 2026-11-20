@@ -81,6 +81,7 @@ class PostImageThumbnailViewWrapper(
     }
 
     actualThumbnailView.bindOmittedFilesInfo(postCellData)
+    actualThumbnailView.bindVideoAutoplayIfNeeded(postCellData, chanPostImage)
   }
 
   override fun onAttachedToWindow() {

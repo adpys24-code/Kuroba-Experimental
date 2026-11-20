@@ -4,10 +4,13 @@ import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Rect
+import android.net.Uri
 import android.text.TextUtils
 import android.util.AttributeSet
+import android.view.TextureView
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.TextView
@@ -23,9 +26,11 @@ import com.github.k1rakishou.chan.core.manager.PrefetchState
 import com.github.k1rakishou.chan.core.manager.PrefetchState.PrefetchCompleted
 import com.github.k1rakishou.chan.core.manager.PrefetchState.PrefetchProgress
 import com.github.k1rakishou.chan.core.manager.PrefetchState.PrefetchStarted
+import com.github.k1rakishou.chan.core.manager.CurrentOpenedDescriptorStateManager
 import com.github.k1rakishou.chan.core.manager.PrefetchStateManager
 import com.github.k1rakishou.chan.core.manager.RevealedSpoilerImagesManager
 import com.github.k1rakishou.chan.core.manager.ThirdEyeManager
+import com.github.k1rakishou.chan.features.album.activeVideoPlayerCount
 import com.github.k1rakishou.chan.features.view.media.MediaViewerControllerViewModel.Companion.canAutoLoad
 import com.github.k1rakishou.chan.ui.cell.PostCellData
 import com.github.k1rakishou.chan.ui.view.SegmentedCircleDrawable
@@ -41,10 +46,18 @@ import com.github.k1rakishou.chan.utils.setOnThrottlingLongClickListener
 import com.github.k1rakishou.common.updatePaddings
 import com.github.k1rakishou.core_logger.Logger
 import com.github.k1rakishou.core_themes.ThemeEngine
+import com.github.k1rakishou.model.data.descriptor.ChanDescriptor
 import com.github.k1rakishou.model.data.descriptor.PostDescriptor
 import com.github.k1rakishou.model.data.post.ChanPostImage
 import com.github.k1rakishou.model.data.post.ChanPostImageType
 import com.github.k1rakishou.v2.KurobaSettings
+import com.github.k1rakishou.v2.parameters.PostThumbnailScaling
+import com.google.android.exoplayer2.DefaultLoadControl
+import com.google.android.exoplayer2.DefaultRenderersFactory
+import com.google.android.exoplayer2.MediaItem
+import com.google.android.exoplayer2.Player
+import com.google.android.exoplayer2.SimpleExoPlayer
+import com.google.android.exoplayer2.video.VideoSize
 import com.github.k1rakishou.v2.parameters.BoardPostViewMode
 import dagger.Lazy
 import kotlinx.coroutines.Dispatchers
@@ -78,6 +91,13 @@ class PostImageThumbnailView @JvmOverloads constructor(
   lateinit var cacheHandlerLazy: Lazy<CacheHandler>
   @Inject
   lateinit var revealedSpoilerImagesManagerLazy: Lazy<RevealedSpoilerImagesManager>
+  @Inject
+  lateinit var currentOpenedDescriptorStateManagerLazy: Lazy<CurrentOpenedDescriptorStateManager>
+
+  private val videoScope = KurobaCoroutineScope()
+  private var videoPlayer: SimpleExoPlayer? = null
+  private var videoTextureView: TextureView? = null
+  private var videoPlayerCounted = false
 
   private val scope = KurobaCoroutineScope()
   private val thirdEyeIcon by lazy { getDrawable(R.drawable.ic_baseline_eye_24).mutate() }
@@ -158,6 +178,8 @@ class PostImageThumbnailView @JvmOverloads constructor(
   }
 
   override fun unbindPostImage() {
+    unbindVideoPlayer()
+
     postImage = null
     thumbnailViewOptions = null
     canUseHighResCells = false
@@ -595,6 +617,159 @@ class PostImageThumbnailView @JvmOverloads constructor(
     this.ratio = ratio
   }
 
+  /**
+   * Plays the post's video inline (muted, looped) instead of showing a static thumbnail.
+   * Only videos that are already fully cached on disk are played. Must be called by every cell
+   * type that wants it (both [PostImageThumbnailViewWrapper] and CardPostCell) since they bind
+   * thumbnails through different code paths.
+   * */
+  fun bindVideoAutoplayIfNeeded(postCellData: PostCellData, chanPostImage: ChanPostImage) {
+    unbindVideoPlayer()
+
+    val isCatalogMode = postCellData.chanDescriptor is ChanDescriptor.ICatalogDescriptor
+    val videoUrl = chanPostImage.imageUrl?.toString()
+
+    if (
+      !isCatalogMode
+      || chanPostImage.type != ChanPostImageType.MOVIE
+      || videoUrl == null
+      || !kurobaSettings.application.catalogVideoAutoplay.readBlocking()
+    ) {
+      return
+    }
+
+    // galleryMaxAutoplays goes up to 24, which is fine for the album grid: it is a transient,
+    // fullscreen view. The catalog is different - it stays on screen (and in SPLIT mode stays
+    // visible while a thread is open), the tablet catalog can be 10 columns wide, and every
+    // player holds a hardware decoder plus its MediaCodec buffers. Letting the album's cap
+    // through here exhausted a 256MB heap on tablets, so clamp it hard.
+    val maxAutoplays = kurobaSettings.application.galleryMaxAutoplays.readBlocking()
+      .coerceAtMost(CATALOG_AUTOPLAY_HARD_CAP)
+    val isSplitLayout = kurobaSettings.application.isSplitLayoutModeBlocking()
+
+    videoScope.launch {
+      val cachedVideoFile = withContext(Dispatchers.IO) {
+        cacheHandler
+          .getCacheFileOrNull(CacheFileType.PostMediaFull, videoUrl)
+          ?.takeIf { file -> file.exists() && file.length() > 0 }
+      } ?: return@launch
+
+      val runtime = Runtime.getRuntime()
+      val availableMB = (runtime.maxMemory() - runtime.totalMemory() + runtime.freeMemory()) / (1024L * 1024L)
+      if (activeVideoPlayerCount.get() >= maxAutoplays || availableMB < MIN_HEAP_MB_BEFORE_NEW_PLAYER) {
+        return@launch
+      }
+
+      val textureView = TextureView(context).apply {
+        alpha = 0f
+        isClickable = false
+        isFocusable = false
+      }
+
+      addView(textureView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+      videoTextureView = textureView
+
+      activeVideoPlayerCount.incrementAndGet()
+      videoPlayerCounted = true
+
+      // The default LoadControl buffers tens of seconds of video per player, which is wasted on
+      // short looping catalog clips and multiplies across every visible cell. Cap it instead.
+      val loadControl = DefaultLoadControl.Builder()
+        .setBufferDurationsMs(5_000, 15_000, 2_000, 3_000)
+        .setTargetBufferBytes(CATALOG_AUTOPLAY_TARGET_BUFFER_BYTES)
+        .setPrioritizeTimeOverSizeThresholds(false)
+        .build()
+
+      @Suppress("DEPRECATION")
+      val player = SimpleExoPlayer.Builder(
+        context,
+        DefaultRenderersFactory(context).setEnableDecoderFallback(true)
+      ).setLoadControl(loadControl).build().also { p ->
+        p.repeatMode = Player.REPEAT_MODE_ONE
+        p.volume = 0f
+        p.playWhenReady = true
+        p.addListener(object : Player.Listener {
+          override fun onRenderedFirstFrame() {
+            textureView.alpha = 1f
+          }
+
+          override fun onVideoSizeChanged(size: VideoSize) {
+            applyVideoTransform(textureView, size.width, size.height)
+          }
+        })
+        p.setVideoTextureView(textureView)
+        p.setMediaItem(MediaItem.fromUri(Uri.fromFile(cachedVideoFile)))
+        p.prepare()
+      }
+
+      videoPlayer = player
+
+      // In SPLIT mode the catalog pane stays visible while a thread is read in the right pane,
+      // so its players would otherwise keep decoding for as long as the thread is open - on top
+      // of whatever the thread itself allocates. Pausing only the cell whose own thread is open
+      // was not enough; pause the whole catalog whenever any thread is open.
+      if (isSplitLayout) {
+        currentOpenedDescriptorStateManagerLazy.get()
+          .currentThreadDescriptorFlow
+          .onEach { openedThreadDescriptor ->
+            player.playWhenReady = openedThreadDescriptor == null
+          }
+          .collect()
+      }
+    }
+  }
+
+  private fun applyVideoTransform(textureView: TextureView, videoWidth: Int, videoHeight: Int) {
+    val viewWidth = textureView.width.toFloat()
+    val viewHeight = textureView.height.toFloat()
+    if (videoWidth <= 0 || videoHeight <= 0 || viewWidth <= 0f || viewHeight <= 0f) {
+      return
+    }
+
+    val videoAr = videoWidth.toFloat() / videoHeight.toFloat()
+    val viewAr = viewWidth / viewHeight
+
+    // Match whatever the static thumbnail does so the video does not jump when it appears
+    val cropToFill = thumbnailViewOptions?.postThumbnailScaling != PostThumbnailScaling.FitCenter
+
+    val scaleX: Float
+    val scaleY: Float
+    if (cropToFill == (videoAr > viewAr)) {
+      scaleX = videoAr / viewAr
+      scaleY = 1f
+    } else {
+      scaleX = 1f
+      scaleY = viewAr / videoAr
+    }
+
+    val matrix = Matrix()
+    matrix.setScale(scaleX, scaleY, viewWidth / 2f, viewHeight / 2f)
+    textureView.setTransform(matrix)
+  }
+
+  private fun unbindVideoPlayer() {
+    videoScope.cancelChildren()
+
+    videoPlayer?.let { player ->
+      player.stop()
+      player.release()
+    }
+    videoPlayer = null
+
+    if (videoPlayerCounted) {
+      activeVideoPlayerCount.decrementAndGet()
+      videoPlayerCounted = false
+    }
+
+    videoTextureView?.let { textureView -> removeView(textureView) }
+    videoTextureView = null
+  }
+
+  override fun onDetachedFromWindow() {
+    super.onDetachedFromWindow()
+    unbindVideoPlayer()
+  }
+
   override fun draw(canvas: Canvas) {
     super.draw(canvas)
 
@@ -663,6 +838,15 @@ class PostImageThumbnailView @JvmOverloads constructor(
 
   companion object {
     private const val TAG = "PostImageThumbnailView"
+    // Never run more than this many catalog autoplays at once, regardless of what the album's
+    // "max simultaneous autoplays" setting says. See bindVideoAutoplayIfNeeded().
+    private const val CATALOG_AUTOPLAY_HARD_CAP = 4
+    private const val CATALOG_AUTOPLAY_TARGET_BUFFER_BYTES = 2 * 1024 * 1024
+
+    // A video decoder needs considerably more than a few spare MB to spin up. 40MB was low
+    // enough that the last player could be created into an almost-full heap and then OOM while
+    // decoding rather than at creation time.
+    private const val MIN_HEAP_MB_BEFORE_NEW_PLAYER = 96L
     private val cornerIndicatorMargin = dp(4f).toFloat()
     private val prefetchIndicatorSize = dp(16f)
     private val thirdEyeIconSize = dp(16f)

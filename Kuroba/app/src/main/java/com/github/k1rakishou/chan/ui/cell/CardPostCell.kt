@@ -260,7 +260,8 @@ class CardPostCell : ConstraintLayout,
     content.setBackgroundResource(R.drawable.item_background)
 
     thumbView = findViewById<PostImageThumbnailView>(R.id.card_post_cell_thumbnail).apply {
-      setRatio(16f / 13f)
+      // The real ratio is applied per-image in bindPostThumbnails()
+      setRatio(DEFAULT_THUMBNAIL_RATIO)
 
       setImageClickListener(PostImageThumbnailViewsContainer.THUMBNAIL_CLICK_TOKEN) {
         val firstImage = postCellData.firstImage
@@ -361,15 +362,42 @@ class CardPostCell : ConstraintLayout,
 
     thumbView?.visibility = VISIBLE
 
+    // In Stagger mode cells are free to have different heights, so show the whole image instead
+    // of cropping it into a fixed aspect ratio. Grid mode keeps the uniform cropped look.
+    val isStaggerMode = kurobaSettings.application.boardPostViewMode.readBlocking() == BoardPostViewMode.Stagger
+
+    if (isStaggerMode) {
+      val imageWidth = firstPostImage.imageWidth
+      val imageHeight = firstPostImage.imageHeight
+
+      if (imageWidth > 0 && imageHeight > 0) {
+        // Clamped so that an extremely tall/wide image cannot produce a cell many screens long
+        val imageRatio = (imageWidth.toFloat() / imageHeight.toFloat())
+          .coerceIn(MIN_THUMBNAIL_RATIO, MAX_THUMBNAIL_RATIO)
+
+        thumbView?.setRatio(imageRatio)
+      } else {
+        thumbView?.setRatio(DEFAULT_THUMBNAIL_RATIO)
+      }
+    } else {
+      thumbView?.setRatio(DEFAULT_THUMBNAIL_RATIO)
+    }
+
     thumbView?.bindPostImage(
       postImage = firstPostImage,
       canUseHighResCells = ColorizableGridRecyclerView.canUseHighResCells(callback!!.currentSpanCount()),
       thumbnailViewOptions = ThumbnailView.ThumbnailViewOptions(
-        postThumbnailScaling = PostThumbnailScaling.CenterCrop,
+        postThumbnailScaling = if (isStaggerMode) {
+          PostThumbnailScaling.FitCenter
+        } else {
+          PostThumbnailScaling.CenterCrop
+        },
         drawThumbnailBackground = false,
         drawRipple = true
       )
     )
+
+    thumbView?.bindVideoAutoplayIfNeeded(postCellData, firstPostImage)
 
     thumbView?.setImageLongClickListener(PostImageThumbnailViewsContainer.THUMBNAIL_LONG_CLICK_TOKEN) {
       if (this.postCellData == null) {
@@ -557,6 +585,10 @@ class CardPostCell : ConstraintLayout,
 
   companion object {
     private const val TAG = "CardPostCell"
+
+    private const val DEFAULT_THUMBNAIL_RATIO = 16f / 13f
+    private const val MIN_THUMBNAIL_RATIO = 0.4f
+    private const val MAX_THUMBNAIL_RATIO = 2.5f
 
     private const val SMALL_FONT_SIZE_SPAN_COUNT = 4
     private const val POST_ICONS_COMPACT_MODE_SPAN_COUNT = 4
