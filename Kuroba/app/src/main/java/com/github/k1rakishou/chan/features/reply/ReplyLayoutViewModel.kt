@@ -25,6 +25,8 @@ import com.github.k1rakishou.chan.features.posting.PostingServiceDelegate
 import com.github.k1rakishou.chan.features.posting.solvers.two_captcha.TwoCaptchaSolver
 import com.github.k1rakishou.chan.features.reply.data.PostFormattingButtonsFactory
 import com.github.k1rakishou.chan.features.reply.data.ReplyFile
+import com.github.k1rakishou.chan.features.reply.converter.MediaConversionHelper
+import com.github.k1rakishou.chan.features.reply.converter.MediaConversionPreset
 import com.github.k1rakishou.chan.features.reply.data.ReplyFileAttachable
 import com.github.k1rakishou.chan.features.reply.data.ReplyLayoutHelper
 import com.github.k1rakishou.chan.features.reply.data.ReplyLayoutState
@@ -94,6 +96,7 @@ class ReplyLayoutViewModel(
   private val boardFlagInfoRepositoryLazy: Lazy<BoardFlagInfoRepository>,
   private val runtimePermissionsHelperLazy: Lazy<RuntimePermissionsHelper>,
   private val imagePickHelperLazy: Lazy<ImagePickHelper>,
+  private val mediaConversionHelperLazy: Lazy<MediaConversionHelper>,
   private val twoCaptchaSolverLazy: Lazy<TwoCaptchaSolver>,
   private val clearPostingCookiesLazy: Lazy<ClearPostingCookies>,
   private val snackbarManagerFactoryLazy: Lazy<SnackbarManagerFactory>
@@ -541,6 +544,38 @@ class ReplyLayoutViewModel(
     markUnmarkAsSpoiler(replyFileAttachable.fileUuid, !currentlySpoiler)
   }
 
+  fun canConvertMedia(fileName: String): Boolean {
+    val mediaConversionHelper = mediaConversionHelperLazy.get()
+    return mediaConversionHelper.isConversionSupported() && mediaConversionHelper.isFileConvertable(fileName)
+  }
+
+  fun isMediaConversionRunning(fileUuid: UUID): Boolean {
+    return mediaConversionHelperLazy.get().isConversionRunning(fileUuid)
+  }
+
+  fun cancelMediaConversion(fileUuid: UUID) {
+    mediaConversionHelperLazy.get().cancelConversion(fileUuid)
+  }
+
+  fun convertAttachedMedia(fileUuid: UUID, preset: MediaConversionPreset) {
+    viewModelScope.launch {
+      showToast(appResources.string(R.string.reply_layout_media_conversion_started))
+
+      when (val result = mediaConversionHelperLazy.get().convertMediaFile(fileUuid, preset)) {
+        is ModularResult.Value -> {
+          showToast(appResources.string(R.string.reply_layout_media_conversion_success))
+        }
+        is ModularResult.Error -> {
+          Logger.error(TAG) {
+            "convertAttachedMedia($fileUuid, $preset) error: ${result.error.errorMessageOrClassName()}"
+          }
+
+          showErrorToast(result.error)
+        }
+      }
+    }
+  }
+
   fun hasSelectedFiles(): Boolean {
     return withReplyLayoutState { replyLayoutState -> replyLayoutState.hasSelectedFiles() } ?: false
   }
@@ -902,6 +937,7 @@ class ReplyLayoutViewModel(
     private val boardFlagInfoRepositoryLazy: Lazy<BoardFlagInfoRepository>,
     private val runtimePermissionsHelperLazy: Lazy<RuntimePermissionsHelper>,
     private val imagePickHelperLazy: Lazy<ImagePickHelper>,
+    private val mediaConversionHelperLazy: Lazy<MediaConversionHelper>,
     private val twoCaptchaSolverLazy: Lazy<TwoCaptchaSolver>,
     private val clearPostingCookiesLazy: Lazy<ClearPostingCookies>,
     private val snackbarManagerFactoryLazy: Lazy<SnackbarManagerFactory>
@@ -925,6 +961,7 @@ class ReplyLayoutViewModel(
         boardFlagInfoRepositoryLazy = boardFlagInfoRepositoryLazy,
         runtimePermissionsHelperLazy = runtimePermissionsHelperLazy,
         imagePickHelperLazy = imagePickHelperLazy,
+        mediaConversionHelperLazy = mediaConversionHelperLazy,
         twoCaptchaSolverLazy = twoCaptchaSolverLazy,
         clearPostingCookiesLazy = clearPostingCookiesLazy,
         snackbarManagerFactoryLazy = snackbarManagerFactoryLazy

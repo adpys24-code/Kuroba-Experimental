@@ -24,6 +24,7 @@ import com.github.k1rakishou.chan.core.site.loader.ChanThreadLoaderCoordinator
 import com.github.k1rakishou.chan.core.site.loader.internal.usecase.ParsePostsV1UseCase
 import com.github.k1rakishou.chan.features.KurobaWebUrlRouter
 import com.github.k1rakishou.chan.features.download.thread.ThreadDownloadProgressNotifier
+import com.github.k1rakishou.chan.features.reply.converter.MediaConversionHelper
 import com.github.k1rakishou.chan.features.reply.data.ReplyLayoutHelper
 import com.github.k1rakishou.chan.features.settings.AppSettingsRestartTracker
 import com.github.k1rakishou.chan.features.view.media.helper.AlbumThreadControllerHelpers
@@ -180,6 +181,26 @@ class HelperModule {
       remoteFilePickerLazy,
       currentOpenedDescriptorStateManagerLazy,
       replyLayoutHelperLazy
+    )
+  }
+
+  @Provides
+  @Singleton
+  fun provideMediaConversionHelper(
+    appContext: Context,
+    appConstantsLazy: Lazy<AppConstants>,
+    replyManagerLazy: Lazy<ReplyManager>,
+    imageLoaderDeprecatedLazy: Lazy<ImageLoaderDeprecated>,
+    imagePickHelperLazy: Lazy<ImagePickHelper>
+  ): MediaConversionHelper {
+    Logger.deps("MediaConversionHelper")
+
+    return MediaConversionHelper(
+      appContext,
+      appConstantsLazy,
+      replyManagerLazy,
+      imageLoaderDeprecatedLazy,
+      imagePickHelperLazy
     )
   }
 

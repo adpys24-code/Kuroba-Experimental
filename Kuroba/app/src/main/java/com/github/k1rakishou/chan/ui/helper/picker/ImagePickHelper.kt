@@ -371,11 +371,15 @@ class ImagePickHelper(
     return ModularResult.Try { replyManager.selectedFilesCount().unwrap() < maxAllowedFilesPerPost }
   }
 
-  private fun emitSyntheticReplyAttachable(
+  fun emitSyntheticReplyAttachable(
     id: SyntheticFileId,
     state: SyntheticReplyAttachableState
   ) {
     _syntheticFilesUpdatesFlow.tryEmit(SyntheticReplyAttachable(id, state))
+  }
+
+  suspend fun notifyNewFilesPicked(fileUuids: Collection<UUID>) {
+    _pickedFilesUpdateFlow.emit(fileUuids)
   }
 
   companion object {

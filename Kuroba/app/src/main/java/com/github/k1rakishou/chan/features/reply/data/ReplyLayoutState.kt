@@ -217,6 +217,7 @@ class ReplyLayoutState(
           when (syntheticReplyAttachable.state) {
             SyntheticReplyAttachableState.Initializing,
             SyntheticReplyAttachableState.Downloading,
+            is SyntheticReplyAttachableState.Converting,
             SyntheticReplyAttachableState.Decoding -> {
               val index = _syntheticAttachables
                 .indexOfFirst { attachable -> attachable.id == syntheticReplyAttachable.id }

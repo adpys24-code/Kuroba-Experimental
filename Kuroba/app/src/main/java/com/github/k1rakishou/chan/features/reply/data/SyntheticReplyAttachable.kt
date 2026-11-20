@@ -19,5 +19,6 @@ sealed interface SyntheticReplyAttachableState {
   data object Initializing : SyntheticReplyAttachableState
   data object Downloading : SyntheticReplyAttachableState
   data object Decoding : SyntheticReplyAttachableState
+  data class Converting(val progressPercent: Int) : SyntheticReplyAttachableState
   data object Done : SyntheticReplyAttachableState
 }

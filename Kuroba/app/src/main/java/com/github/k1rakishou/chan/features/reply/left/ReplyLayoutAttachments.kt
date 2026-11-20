@@ -159,10 +159,17 @@ private fun SyntheticReplyAttachable(
   ) {
     Shimmer(modifier = Modifier.fillMaxSize())
 
-    val text = when (syntheticReplyAttachable.state) {
+    val text = when (val state = syntheticReplyAttachable.state) {
       SyntheticReplyAttachableState.Initializing -> stringResource(id = R.string.reply_synthetic_file_state_initializing)
       SyntheticReplyAttachableState.Downloading -> stringResource(id = R.string.reply_synthetic_file_state_downloading)
       SyntheticReplyAttachableState.Decoding -> stringResource(id = R.string.reply_synthetic_file_state_decoding_preview)
+      is SyntheticReplyAttachableState.Converting -> {
+        if (state.progressPercent >= 0) {
+          stringResource(id = R.string.reply_synthetic_file_state_converting, state.progressPercent)
+        } else {
+          stringResource(id = R.string.reply_synthetic_file_state_converting_indeterminate)
+        }
+      }
       SyntheticReplyAttachableState.Done -> stringResource(id = R.string.reply_synthetic_file_state_done)
     }
 

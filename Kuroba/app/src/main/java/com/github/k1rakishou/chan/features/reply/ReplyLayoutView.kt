@@ -21,6 +21,7 @@ import com.github.k1rakishou.chan.core.site.SiteAuthentication
 import com.github.k1rakishou.chan.core.site.sites.chan4.Chan4SiteSettings
 import com.github.k1rakishou.chan.core.usecase.LoadBoardFlagsUseCase
 import com.github.k1rakishou.chan.features.KurobaWebUrlRouter
+import com.github.k1rakishou.chan.features.reply.converter.MediaConversionPreset
 import com.github.k1rakishou.chan.features.reply.data.ReplyFileAttachable
 import com.github.k1rakishou.chan.features.reply.data.ReplyLayoutVisibility
 import com.github.k1rakishou.chan.features.search.remotemedia.ImageSearchController
@@ -273,7 +274,7 @@ class ReplyLayoutView @JvmOverloads constructor(
   }
 
   override suspend fun onAttachedMediaLongClicked(attachedMedia: ReplyFileAttachable) {
-    showAttachFileOptions(attachedMedia.fileUuid)
+    showAttachFileOptions(attachedMedia)
   }
 
   override fun onDontKeepActivitiesSettingDetected() {
@@ -479,7 +480,8 @@ class ReplyLayoutView @JvmOverloads constructor(
     return hasWebViewLinks
   }
 
-  private suspend fun showAttachFileOptions(selectedFileUuid: UUID) {
+  private suspend fun showAttachFileOptions(attachedMedia: ReplyFileAttachable) {
+    val selectedFileUuid = attachedMedia.fileUuid
     val floatingListMenuItems = mutableListOf<FloatingListMenuItem>()
 
     floatingListMenuItems += FloatingListMenuItem(
@@ -487,6 +489,39 @@ class ReplyLayoutView @JvmOverloads constructor(
       name = context.getString(R.string.layout_reply_files_area_delete_file_action),
       value = selectedFileUuid
     )
+
+    if (replyLayoutViewModel.canConvertMedia(attachedMedia.fileName)) {
+      if (replyLayoutViewModel.isMediaConversionRunning(selectedFileUuid)) {
+        floatingListMenuItems += FloatingListMenuItem(
+          key = ACTION_CANCEL_MEDIA_CONVERSION,
+          name = context.getString(R.string.layout_reply_files_area_cancel_media_conversion),
+          value = selectedFileUuid
+        )
+      } else {
+        floatingListMenuItems += FloatingListMenuItem(
+          key = ACTION_CONVERT_MEDIA,
+          name = context.getString(R.string.layout_reply_files_area_convert_media),
+          value = selectedFileUuid,
+          more = listOf(
+            FloatingListMenuItem(
+              key = ACTION_CONVERT_MEDIA_TO_WEBM_VP9,
+              name = context.getString(R.string.layout_reply_files_area_convert_media_webm_vp9),
+              value = selectedFileUuid
+            ),
+            FloatingListMenuItem(
+              key = ACTION_CONVERT_MEDIA_TO_WEBM_VP8,
+              name = context.getString(R.string.layout_reply_files_area_convert_media_webm_vp8),
+              value = selectedFileUuid
+            ),
+            FloatingListMenuItem(
+              key = ACTION_CONVERT_MEDIA_TO_MP4_H264,
+              name = context.getString(R.string.layout_reply_files_area_convert_media_mp4_h264),
+              value = selectedFileUuid
+            )
+          )
+        )
+      }
+    }
 
     floatingListMenuItems += FloatingListMenuItem(
       key = ACTION_REMOVE_THIS_FILE_NAME,
@@ -597,6 +632,16 @@ class ReplyLayoutView @JvmOverloads constructor(
       ACTION_UNSELECT_ALL -> replyLayoutViewModel.selectUnselectAll(selectAll = false)
       ACTION_MARK_THIS_FILE_AS_SPOILER -> replyLayoutViewModel.markUnmarkAsSpoiler(clickedFileUuid, spoiler = true)
       ACTION_UNMARK_THIS_FILE_AS_SPOILER -> replyLayoutViewModel.markUnmarkAsSpoiler(clickedFileUuid, spoiler = false)
+      ACTION_CANCEL_MEDIA_CONVERSION -> replyLayoutViewModel.cancelMediaConversion(clickedFileUuid)
+      ACTION_CONVERT_MEDIA_TO_WEBM_VP9 -> {
+        replyLayoutViewModel.convertAttachedMedia(clickedFileUuid, MediaConversionPreset.ToWebmVp9)
+      }
+      ACTION_CONVERT_MEDIA_TO_WEBM_VP8 -> {
+        replyLayoutViewModel.convertAttachedMedia(clickedFileUuid, MediaConversionPreset.ToWebmVp8)
+      }
+      ACTION_CONVERT_MEDIA_TO_MP4_H264 -> {
+        replyLayoutViewModel.convertAttachedMedia(clickedFileUuid, MediaConversionPreset.ToMp4H264)
+      }
     }
   }
 
@@ -730,6 +775,11 @@ class ReplyLayoutView @JvmOverloads constructor(
     private const val ACTION_REMOVE_THIS_FILE_NAME = 10
     private const val ACTION_REMOVE_THIS_FILE_METADATA = 11
     private const val ACTION_CHANGE_THIS_FILE_CHECKSUM = 12
+    private const val ACTION_CONVERT_MEDIA = 13
+    private const val ACTION_CANCEL_MEDIA_CONVERSION = 14
+    private const val ACTION_CONVERT_MEDIA_TO_WEBM_VP9 = 15
+    private const val ACTION_CONVERT_MEDIA_TO_WEBM_VP8 = 16
+    private const val ACTION_CONVERT_MEDIA_TO_MP4_H264 = 17
 
     private const val ACTION_REPLY_MODES = 100
     private const val ACTION_IGNORE_REPLY_COOLDOWNS = 101
