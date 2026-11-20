@@ -115,9 +115,13 @@ fun ReplyLayoutBottomSheet(
       )
     }
 
+    // replay = 1 is important here: the collector below is keyed on min/maxPositionY and thus
+    // restarts on rotation/resize. Without replay, a DragRequest emitted during that restart
+    // (e.g. "move to the new Collapsed anchor") is lost and the sheet stays at the old screen's
+    // offset, covering the bottom part of the thread with an empty sheet.
     val dragRequests = remember {
       MutableSharedFlow<DragRequest>(
-        extraBufferCapacity = 1,
+        replay = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
       )
     }

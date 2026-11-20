@@ -55,7 +55,10 @@ import com.github.k1rakishou.model.data.descriptor.PostDescriptor
 import com.github.k1rakishou.v2.KurobaSettings
 import com.github.k1rakishou.v2.parameters.LayoutMode
 import dagger.Lazy
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -177,6 +180,19 @@ class StartActivity :
       applicationCrashNotifier.applicationCrashedEventFlow
         .onEach { finish() }
         .collect()
+    }
+    lifecycleScope.launch {
+      // Automatically restart the app when the layout mode changes, otherwise the change
+      // does not take effect until the user manually restarts the app
+      kurobaSettings.application.layoutMode.listen()
+        .distinctUntilChanged()
+        .drop(1)
+        .collect {
+          Logger.d(TAG, "Layout mode changed, restarting the app to apply it")
+          // Give the setting write a moment to be persisted before the process is killed
+          delay(1_000)
+          appRestarter.restart()
+        }
     }
 
     mainController.loadMainControllerDrawerData()

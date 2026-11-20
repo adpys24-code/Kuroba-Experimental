@@ -535,9 +535,16 @@ class KurobaToolbarState(
         onKurobaToolbarTransitionInstantFinished(transition)
       }
       is KurobaToolbarTransition.Progress -> {
-        error("Attempt to perform more than one transition at the same time!\n" +
-          "current: ${transitionToolbarState.value}\n" +
-          "new: ${other} with transitionMode: ${transitionMode}")
+        // A previous progress transition was never finalized. This happens when the sliding pane
+        // is grabbed again while it is still settling, so onPanelOpened()/onPanelClosed() (and
+        // therefore finishToolbarTransition()) never fire for the previous gesture.
+        // Finalize the stale transition and start the new one instead of killing the app.
+        Logger.error(TAG) {
+          "onTransitionProgressStart() a progress transition is already active, finishing it. " +
+            "current: ${transition}, new: ${other} with transitionMode: ${transitionMode}"
+        }
+
+        onTransitionProgressFinished()
       }
       null -> {
         // no-op
