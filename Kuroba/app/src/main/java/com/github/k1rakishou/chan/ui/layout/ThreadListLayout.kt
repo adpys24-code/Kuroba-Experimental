@@ -296,7 +296,11 @@ class ThreadListLayout @JvmOverloads constructor(
     super.onMeasure(widthMeasureSpec, heightMeasureSpec)
 
     val cardWidth = getDimen(R.dimen.grid_card_width)
-    val gridCountSetting = kurobaSettings.application.catalogSpanCount.readBlocking()
+    val gridCountSetting = if (kurobaSettings.application.isSplitLayoutModeBlocking()) {
+      kurobaSettings.application.catalogSpanCountSplit.readBlocking()
+    } else {
+      kurobaSettings.application.catalogSpanCount.readBlocking()
+    }
 
     if (gridCountSetting > 0) {
       spanCount = gridCountSetting

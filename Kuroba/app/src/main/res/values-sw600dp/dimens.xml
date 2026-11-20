@@ -15,6 +15,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <bool name="is_tablet">true</bool>
     <dimen name="navigation_view_size">46dp</dimen>
 
+    <!-- Phones use 48dp (values/dimens.xml). 64dp is the Material app bar height for tablets. -->
+    <dimen name="toolbar_height">64dp</dimen>
+
     <dimen name="history_entry_thread_image_size">54dp</dimen>
     <dimen name="history_entry_site_image_size">24dp</dimen>
     <dimen name="thread_list_bookmark_view_image_size">54dp</dimen>

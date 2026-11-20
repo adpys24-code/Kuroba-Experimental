@@ -536,6 +536,13 @@ class ThreadLayout @JvmOverloads constructor(
     val initial = threadLayoutState != State.CONTENT
     val (width, _) = loadView.awaitUntilGloballyLaidOutAndGetSize(waitForWidth = true)
 
+    if (width <= 0) {
+      // Can happen when this layout lives in a pane that is currently collapsed/not laid out.
+      // There is nothing to render into, and passing 0 further down throws in ThreadCellData.
+      Logger.d(TAG, "showPostsForChanDescriptor() view has no width yet, skipping")
+      return
+    }
+
     if (refreshPostPopupHelperPosts && postPopupHelper.isOpen) {
       postPopupHelper.updateAllPosts(descriptor)
     }
