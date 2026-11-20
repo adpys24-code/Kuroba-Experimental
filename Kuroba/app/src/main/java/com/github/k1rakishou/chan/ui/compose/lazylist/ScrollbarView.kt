@@ -57,6 +57,7 @@ import com.github.k1rakishou.chan.ui.view.PostInfoMapItemDecoration
 import com.github.k1rakishou.chan.utils.AppModuleAndroidUtils
 import com.github.k1rakishou.common.quantize
 import com.github.k1rakishou.core_themes.ChanTheme
+import com.github.k1rakishou.v2.KurobaSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
@@ -75,6 +76,8 @@ class ScrollbarView @JvmOverloads constructor(
   lateinit var appResources: AppResources
   @Inject
   lateinit var globalUiStateHolder: GlobalUiStateHolder
+  @Inject
+  lateinit var kurobaSettings: KurobaSettings
 
   private val _postInfoMapItemDecoration by lazy(LazyThreadSafetyMode.NONE) { PostInfoMapItemDecoration(context) }
   private val _attachedRecyclerView = mutableStateOf<RecyclerView?>(null, referentialEqualityPolicy())
@@ -84,7 +87,7 @@ class ScrollbarView @JvmOverloads constructor(
   val scrollbarWidth: Dp
     get() {
       return if (_isScrollbarDraggable.value) {
-        DEFAULT_DRAGGABLE_SCROLLBAR_WIDTH
+        kurobaSettings.application.draggableScrollbarWidth.readBlocking().dp
       } else {
         DEFAULT_UNDRAGGABLE_SCROLLBAR_WIDTH
       }
@@ -254,10 +257,15 @@ class ScrollbarView @JvmOverloads constructor(
         var needToDrawScrollbar by remember { mutableStateOf(false) }
         val scrollbarManualDragProgress by scrollbarManualDragProgressState
 
+        val alwaysShowScrollbar = remember {
+          kurobaSettings.application.alwaysShowScrollbar.readBlocking() && _isScrollbarDraggable.value
+        }
+
         val isScrollbarDragged = scrollbarManualDragProgress != null
         val targetStaticThumbAlpha = when {
           isScrollbarDragged -> 1f
           recyclerViewScrollState == RecyclerViewScrollState.Scrolling -> 0.8f
+          alwaysShowScrollbar -> 0.6f
           else -> 0f
         }
 
@@ -270,19 +278,23 @@ class ScrollbarView @JvmOverloads constructor(
         val targetMarksAlpha = when {
           isScrollbarDragged -> 1f
           recyclerViewScrollState == RecyclerViewScrollState.Scrolling -> 1f
+          alwaysShowScrollbar -> 0.6f
           else -> 0f
         }
 
         val targetTrackAlpha = when {
           isScrollbarDragged -> 0.7f
           recyclerViewScrollState == RecyclerViewScrollState.Scrolling -> 0.5f
+          alwaysShowScrollbar -> 0.2f
           else -> 0f
         }
 
         val isBeingScrolledOrDragged = recyclerViewScrollState == RecyclerViewScrollState.Scrolling || isScrollbarDragged
         val duration = if (isBeingScrolledOrDragged) 150 else 500
         val delay = if (isBeingScrolledOrDragged) 0 else 1500
-        val scrollbarWidthPx = with(density) { if (isBeingScrolledOrDragged) scrollbarWidth.roundToPx() else 0 }
+        val scrollbarWidthPx = with(density) {
+          if (isBeingScrolledOrDragged || alwaysShowScrollbar) scrollbarWidth.roundToPx() else 0
+        }
         val tempArray = remember(key1 = layoutManager) { IntArray(32) }
 
         val staticThumbAlphaAnimatedState = animateFloatAsState(
@@ -347,6 +359,18 @@ class ScrollbarView @JvmOverloads constructor(
 
             if (recyclerViewPaddingsState.value != newPaddingValues) {
               recyclerViewPaddingsState.value = newPaddingValues
+            }
+
+            if (alwaysShowScrollbar) {
+              // Without this the scrollbar stays hidden until the first scroll event
+              val range = recyclerView.computeVerticalScrollRange()
+              needToDrawScrollbar = range > (recyclerView.height * 1.33f)
+
+              val extent = recyclerView.computeVerticalScrollExtent()
+              val offset = recyclerView.computeVerticalScrollOffset()
+              recyclerViewScrollExtent.intValue = extent
+              recyclerViewScrollRange.intValue = range
+              recyclerViewScrollOffset.intValue = offset
             }
           }
         }
