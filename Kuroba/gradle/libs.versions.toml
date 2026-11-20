@@ -11,6 +11,7 @@ room = "2.8.4"
 dagger = "2.59.2"
 okhttp = "5.3.2"
 exoplayer = "2.19.1"
+ffmpeg-kit = "2.2.1"
 coil = "2.7.0"
 voyager = "1.0.1"
 joda-time = "2.14.1"
@@ -79,6 +80,7 @@ joda-time = { module = "joda-time:joda-time", version.ref = "joda-time" }
 coil = { module = "io.coil-kt:coil", version.ref = "coil" }
 voyager-navigator = { module = "cafe.adriel.voyager:voyager-navigator", version.ref = "voyager" }
 exoplayer = { module = "com.google.android.exoplayer:exoplayer", version.ref = "exoplayer" }
+ffmpeg-kit-full-gpl = { module = "com.antonkarpenko:ffmpeg-kit-full-gpl", version.ref = "ffmpeg-kit" }
 epoxy = { module = "com.airbnb.android:epoxy", version.ref = "epoxy" }
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 junit = { module = "junit:junit", version.ref = "junit" }

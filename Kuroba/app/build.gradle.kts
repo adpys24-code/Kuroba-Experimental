@@ -296,6 +296,7 @@ dependencies {
     implementation(libs.activity.compose)
     implementation(libs.exoplayer.core)
     implementation(libs.exoplayer.ui)
+    implementation(libs.ffmpeg.kit.full.gpl)
     implementation(libs.okhttp)
     implementation(libs.okhttp.dnsoverhttps)
     implementation(libs.okhttp.logging.interceptor)
