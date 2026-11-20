@@ -11,6 +11,15 @@ Newest added features on top of v1.3.44
 - UI options: bottom navigation bar, never-hide toolbar, classic board dropdown, classic settings sizing
 - 4chan flags parsed from API + new flag picker; spoiler toggle on attachments
 - Cloudflare bypass popup only for sites actually opened
+- Built-in media converter (ffmpeg): long-press an attached file in the reply box → "Convert media to…" — WebM (VP9/VP8), MP4 (H264), incl. HEVC→H264 re-encode, with in-place progress and cancel
+- Thread scrollbar: always visible + wider by default so it can actually be grabbed and dragged for fast scrolling; width and always-show are configurable in Appearance settings
+- Tablet friendliness: post thumbnail size slider now goes up to 200% (was 125%); SPLIT layout divider is draggable (15–60%), dragging it all the way left hides the catalog pane entirely (tap the highlighted strip at the left edge to bring it back at its previous width); position persists; taller 64dp toolbar on tablets (phones stay 48dp); hardware keyboard hotkeys (toggle in Behavior settings) — arrows/PgUp/PgDn switch media, Esc closes the media viewer
+- Fix: after rotating to portrait, the bottom part of the thread could stay covered by an empty (mispositioned) reply sheet until the reply box was opened/closed
+- Separate catalog column count settings for SPLIT vs other layout modes; up to 10 columns on tablets (5 on phones)
+- Experimental: autoplay cached videos inline in catalog thumbnails (muted/looped, at most 4 at once; paused while a thread is open in SPLIT mode)
+- Bigger media caches: ExoPlayer video cache 128→256MB, media cache default 256→384MB (max 2GB), prefetch cache default 512→768MB (max 4GB)
+- Changing the layout mode now restarts the app automatically so it applies immediately
+- Fix: MPV seeking used keyframe seeks, so dragging the time bar snapped to a few coarse positions (and always jumped back to the start on single-keyframe webms). Seeks are now exact, and the position label updates live while scrubbing
 
 ### [Latest stable release](https://github.com/K1rakishou/Kuroba-Experimental/releases/latest)
 
